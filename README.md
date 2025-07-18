@@ -13,6 +13,23 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+## Overall Structure
+It's not set in stone yet.
+
+- analysis/         
+  - run.py         (Main script to run the tool)
+- pre_analysis/    (Pre-analysis scripts for generating static type analysis results)
+- evaluation/      (Evaluation scripts for generating and printing results)
+  - eval.py        (Evaluate the results)
+  - print_table.py (Print the results in a table format)
+- run/             (The code for main components)
+  - make_data.py   (Generate the data for the type similarity model)
+  - rerank.py      (Implementation for Re-ranking and Augmentation)
+  - run_static_analyis.py (Run static analysis tools)
+- train.py        (Train the type similarity model for BetterTypes4Py dataset)
+- train_many4types.py (Train the type similarity model for ManyTypes4Py dataset)
+
+
 ## Evaluation
 
 For ease of evaluation, we save the pre-computed outputs to the `output/` directory.
