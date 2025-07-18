@@ -1,0 +1,24 @@
+__pycache__
+results/*
+other_script/*
+*.pkl
+*.parquet
+*.log
+copy/*
+*.png
+*.pdf
+*.json
+*.zip
+*.sh
+*.txt
+data/*
+backup/*
+prediction/*
+train_data.parquet
+ret_test_data.parquet
+ret_train_data.parquet
+test_data.parquet
+*.7z
+
+# Include Output
+!output/*
