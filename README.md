@@ -35,19 +35,63 @@ It's not set in stone yet.
 For ease of evaluation, we save the pre-computed outputs to the `output/` directory.
 If you want to create new outputs, please follow the [Usage](#usage) section.
 
-### Requirements
+### Docker Image
+
+You can use the provided Docker image to evaluate the results.
+```bash
+docker build -t typecare .
+```
+
+Then, you can run the Docker container with the following command:
+```bash
+docker run -it typecare
+```
+
+#### Reproduction in Docker
+
+To reproduce the results in the Docker container, you can run the following command:
+```bash
+# in the Docker container
+cd TypeCare
+python -m analysis.run --evaluate
+```
+Please note that the initial run may take a while as it will download tokenizers.
+Then, you can obtain main reulsts of Table 3~7 in the paper such as follows:
+
+```bash
+=== Main Table ===
+  Model     Exact T1(%)    Exact T3(%)    Exact T5(%)     Base T1(%)     Base T3(%)     Base T5(%)
+-------  --------------  -------------  -------------  -------------  -------------  -------------
+ TypeT5           71.4%          77.2%          78.9%          78.1%          83.7%          85.4%
+  +Ours  (+13.6%) 81.1%  (+7.4%) 82.9%  (+5.8%) 83.5%  (+9.2%) 85.3%  (+4.3%) 87.3%  (+3.0%) 88.0%
+-------  --------------  -------------  -------------  -------------  -------------  -------------
+  Tiger           67.8%          78.0%          80.2%          75.8%          85.5%          88.0%
+  +Ours  (+11.8%) 75.8%  (+4.4%) 81.4%  (+4.5%) 83.8%  (+6.5%) 80.7%  (+2.3%) 87.5%  (+2.7%) 90.4%
+-------  --------------  -------------  -------------  -------------  -------------  -------------
+TypeGen           65.4%          73.4%          75.0%          71.6%          79.9%          81.6%
+  +Ours  (+12.5%) 73.6%  (+7.6%) 79.0%  (+6.8%) 80.1%  (+9.9%) 78.7%  (+5.4%) 84.2%  (+4.9%) 85.6%
+
+=== Function Signature Table ===
+... (continue with the rest of the results)
+```
+
+### Local Setup
+
+If you want to run the tool locally, you can follow the steps below.
+
+#### Requirements
 You need to install the following packages:
 ```bash
 pip install colorlog
 pip install tabulate
 ```
 
-### Reproduction
+#### Reproduction in Local
 
 To reproduce the results reported in our paper, you can run the following command:
 
 ```bash
-cd LLMTypeInfer
+cd <REPO_NAME>
 python -m analysis.run --evaluate
 ```
 Please note that the initial run may take a while as it will download tokenizers.

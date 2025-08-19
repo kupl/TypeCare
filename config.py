@@ -2,7 +2,7 @@ from pathlib import Path
 
 # Home Path
 home = Path.home()
-ours = home / "LLMTypeInfer"
+ours = home / "TypeCare"
 
 # Prediction Path
 PRED_PATH = ours / "prediction"
