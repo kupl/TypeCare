@@ -1,18 +1,3 @@
-## Requirements
-- Python>=3.10
-- PyTorch>=2.1
-- [HiTyper](https://github.com/JohnnyPeng18/HiTyper)
-```bash
-pip install hityper
-```
-- [TypeT5](https://github.com/utopia-group/TypeT5)
-```bash
-# Clone the TypeT5 repository
-cd TypeT5
-pip install -r requirements.txt
-pip install -e .
-```
-
 ## Overall Structure
 It's not set in stone yet.
 
@@ -35,7 +20,7 @@ It's not set in stone yet.
 For ease of evaluation, we save the pre-computed outputs to the `output/` directory.
 If you want to create new outputs, please follow the [Usage](#usage) section.
 
-### Docker Image
+### Docker Setup
 
 You can use the provided Docker image to evaluate the results.
 ```bash
@@ -80,6 +65,20 @@ TypeGen           65.4%          73.4%          75.0%          71.6%          79
 If you want to run the tool locally, you can follow the steps below.
 
 #### Requirements
+- Python>=3.10
+- PyTorch>=2.1
+- [HiTyper](https://github.com/JohnnyPeng18/HiTyper)
+```bash
+pip install hityper
+```
+- [TypeT5](https://github.com/utopia-group/TypeT5)
+```bash
+# Clone the TypeT5 repository
+cd TypeT5
+pip install -r requirements.txt
+pip install -e .
+```
+
 You need to install the following packages:
 ```bash
 pip install colorlog
