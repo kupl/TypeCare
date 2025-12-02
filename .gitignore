@@ -22,3 +22,6 @@ test_data.parquet
 
 # Include Output
 !output/*
+
+# Include requirements
+!requirements.txt
