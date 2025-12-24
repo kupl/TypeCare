@@ -5,7 +5,7 @@ ENV HOME=/home
 WORKDIR $HOME
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y git wget unzip
 
 # update pip
 RUN pip install --upgrade pip

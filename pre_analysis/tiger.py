@@ -11,6 +11,34 @@ from multiprocessing import Pool
 import time
 import json
 
+class TypingImportChecker(ast.NodeVisitor):
+    """
+    Python ast를 사용하여 'from typing import *' 또는 
+    'from typing import Optional'이 있는지 확인하는 Visitor
+    """
+    def __init__(self):
+        self.found_typing_optional = False
+
+    def visit_ImportFrom(self, node):
+        # 1. 'from typing' 모듈인지 확인
+        if node.module == 'typing':
+            # 2. 임포트된 이름 목록 순회 (node.names)
+            for alias in node.names:
+                
+                # 'import *' (ImportStar) 확인
+                if alias.name == '*':
+                    self.found_typing_optional = True
+                    return
+                
+                # 'import Optional' 확인 (as Optional은 Optional로 간주)
+                elif alias.name == 'Optional' or alias.asname == 'Optional':
+                    self.found_typing_optional = True
+                    return
+        
+        # 순회를 계속합니다.
+        self.generic_visit(node)
+
+
 def match_type_for_cot(string):
     pattern = re.compile(r'\`[a-zA-Z\.]+(?:\[[a-zA-Z\. ]+(?:\,[a-zA-Z\. ]+)*\])*\`')
     matched = re.findall(pattern, string)
@@ -603,6 +631,24 @@ def run():
                 with open(result_path / "file_info.json", "w") as f:
                     json.dump(file_info, f, indent=4)
 
+                    with open(tiger_path / file_path, "r") as f:
+                        original_code = ast.parse(f.read())
+
+                import_checker = TypingImportChecker()
+                import_checker.visit(original_code)
+                if import_checker.found_typing_optional:
+                    new_predictions = []
+                    for preds in predictions:
+                        new_preds = []
+                        for pred in preds:
+                            if pred is None:
+                                new_preds.append(pred)
+                                continue
+                            new_pred = str(pred).replace('typing.Optional', 'Optional')
+                            new_preds.append(new_pred)
+                        new_predictions.append(new_preds)
+
+                    predictions = new_predictions
 
                 try:
                     shutil.copyfile(file_path, file_path + ".bak")

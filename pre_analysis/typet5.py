@@ -13,6 +13,42 @@ import json
 from multiprocessing import Pool
 import time
 
+from config import TYPET5_PREDICTION_PATH, HOME_PATH
+
+class TypingOptionalCheckerLegacy(cst.CSTVisitor):
+    """
+    libcst 헬퍼 함수 없이 from typing import Optional 구문을 확인하는 Visitor
+    """
+    def __init__(self):
+        super().__init__()
+        self.found_optional_import: bool = False
+
+    def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
+        # from typing ... 인지 확인
+        # node.module이 None이 아니고 (상대 경로가 아닌 경우), cst.Name 노드이며, 이름이 'typing'인지 확인
+        module_is_typing = (
+            node.module is not None and
+            isinstance(node.module, cst.Name) and
+            node.module.value == "typing"
+        )
+
+        if module_is_typing:
+            # import Optional 이 있는지 확인
+            if isinstance(node.names, cst.ImportStar):
+                self.found_optional_import = True
+                return
+            
+            for import_alias in node.names:
+                # import_alias.name이 cst.Name 노드이며, 이름이 'Optional'인지 확인
+                is_optional_imported = (
+                    isinstance(import_alias.name, cst.Name) and
+                    import_alias.name.value == "Optional"
+                )
+
+                if is_optional_imported:
+                    self.found_optional_import = True
+                    return
+
 # Get annotation number of the method (or function) signature from the given code
 def count_annotations(code: str, target: str):
     tree = ast.parse(code)
@@ -329,9 +365,7 @@ def process_prediction(args):
 
 
 def run():
-    result_path = Path('evaluations/ManyTypes4Py')
-
-    with open(result_path / 'double-traversal-EvalResultAllTest_0329.pkl', 'rb') as f:
+    with open(TYPET5_PREDICTION_PATH, 'rb') as f:
         evalr = pickle.load(f)
 
     prj_roots = evalr.project_roots
@@ -339,10 +373,6 @@ def run():
 
 
     result = evalr.return_predictions()
-    result_path_set = set()
-
-    path_set = set([])
-
     start_time = time.time()
     sig_count = 0
     file_time_dict = {}
@@ -386,7 +416,7 @@ def run():
 
                 first_dir = src_name.split('.')[0]
 
-                proj_path = Path(str(proj).replace("/home/wonseok/", "/home/wonseokoh/"))
+                proj_path = Path(str(proj).replace("/home/wonseok/", str(HOME_PATH)))
 
                 file_path = proj_path / src_path
                 # check if file exists
@@ -466,6 +496,29 @@ def run():
                 module = cst.parse_module(code)
                 wrapper = cst.metadata.MetadataWrapper(module)
                 
+                new_all_predictions = []
+                for preds in all_predcitions:
+                    preds = [str(pred) for pred in preds]
+                    new_all_predictions.append(preds)
+                all_predcitions = new_all_predictions
+
+                checker_optional = TypingOptionalCheckerLegacy()
+                wrapper.visit(checker_optional)
+                uses_optional = checker_optional.found_optional_import
+                
+                if uses_optional:
+                    # change typing.Optional to Optional in predictions
+                    new_predictions = []
+                    for preds in all_predcitions:
+                        new_preds = []
+                        for pred in preds:
+                            if pred is None:
+                                new_preds.append(pred)
+                                continue
+                            new_pred = str(pred).replace('typing.Optional', 'Optional')
+                            new_preds.append(new_pred)
+                        new_predictions.append(new_preds)
+                    all_predcitions = new_predictions
 
                 if not os.path.exists(result_path):
                     os.makedirs(result_path)

@@ -1,8 +1,8 @@
 from pathlib import Path
 
 # Home Path
-home = Path.home()
-ours = home / "TypeCare"
+HOME_PATH = Path.home()
+ours = HOME_PATH / "TypeCare"
 
 # Prediction Path
 PRED_PATH = ours / "prediction"
@@ -22,13 +22,13 @@ TIGER_OUTPUT_PATH = OUTPUT_PATH / "tiger_result.pkl"
 
 
 # Configuration for TypeGen
-TYPEGEN_PATH= home / "TypeGen"
+TYPEGEN_PATH= PRED_PATH / "TypeGen"
 TYPEGEN_PREDICTION_PATH = TYPEGEN_PATH / "data" / "predictions" / "typegen.json"
 TYPEGEN_TESTSET_PATH = PRED_PATH / "TypeGen" / "transformed_result.json"
 TYPEGEN_OUTPUT_PATH = OUTPUT_PATH / "typegen_result.pkl"
 
 # Configuration for TypeT5
-TYPET5_PATH = home / "TypeT5"
+TYPET5_PATH = PRED_PATH / "TypeT5"
 TYPET5_PREDICTION_PATH = TYPET5_PATH / 'evaluations/ManyTypes4Py' / 'double-traversal-EvalResultAllTest_0329.pkl'
 TYPET5_TRANSFORM_PATH = PRED_PATH / "TypeT5" / "typet5_function_transform.pkl"
 TYPET5_OUTPUT_PATH = OUTPUT_PATH / "typet5_result.pkl"

@@ -126,6 +126,14 @@ To run the analysis, you need to prepare the data.
 - [ManyTypes4Py](https://github.com/saltudelft/many-types-4-py-dataset)
 - [BetterTypes4Py](https://github.com/utopia-group/TypeT5)
 
+#### Download ManyTypes4Py
+```
+cd ~
+wget -O ManyTypes4PyDataset-v0.7.tar.gz "https://zenodo.org/records/5244636/files/ManyTypes4PyDataset-v0.7.tar.gz?download=1"
+tar -xvzf ManyTypes4PyDataset-v0.7.tar.gz
+```
+
+
 You can download the datasets and place them in the `repos/` directory.
 
 ### Run Tool

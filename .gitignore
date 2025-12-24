@@ -19,6 +19,8 @@ ret_test_data.parquet
 ret_train_data.parquet
 test_data.parquet
 *.7z
+ManyTypes4Py/repos/*
+BetterTypes4Py/repos/*
 
 # Include Output
 !output/*
