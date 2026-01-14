@@ -10,7 +10,7 @@ import difflib
 import glob
 from pprint import pprint
 import time
-from utils import remove_prefix_filename, remove_suffix_filename
+from utils import remove_prefix_filename, remove_suffix_filename, output_folder_name
 from evaluation.print_table import PrintTable
 
 from config import (
@@ -325,13 +325,25 @@ class TypeT5Analysis:
         with open("fail.json", 'w') as f:
             json.dump(fail_json, f, indent=4)
 
+    def get_result_path(self, repo_name, file_path, target):
+        folder_name = output_folder_name(repo_name, file_path)
+        path = DATA_PATH / "TypeT5_1118" / folder_name / str(target).replace(".", "_")
+        if not path.exists():
+            folder_name = output_folder_name(repo_name, "src/" + file_path)
+            path = DATA_PATH / "TypeT5_1118" / folder_name / target
+
+        if not path.exists():
+            return None
+    
+        return path
+
     def load_transformed_data(self):
         error_num = 0
         logger.info("Loading TypeT5 transformed prediction results...")
         problem_list = ProblemList()
 
-        with open(TYPET5_TRANSFORM_PATH, 'rb') as f:
-            typet5_transform = pickle.load(f)
+        with open(TYPET5_TRANSFORM_PATH, "r") as f:
+            typet5_transform = json.load(f)
         
         logger.info("TypeT5 transformed prediction results loaded: %i projects", len(typet5_transform))
 
@@ -342,15 +354,18 @@ class TypeT5Analysis:
 
 
             repo_name = data['repo_name']
-            src_path = data['src_path']
+            # src_path = data['src_path']
             file_path = data['file_path']
 
-            proj_result_path = Path(data['result_path'])
+            # proj_result_path = Path(data['result_path'])
             target = data['target']
             params = data['params']
             preds = data['predictions']
             expects = data['expects']
-            result_path = DATA_PATH / "TypeT5" / proj_result_path
+            result_path = self.get_result_path(repo_name, file_path, target)
+
+            if result_path is None:
+                continue
             
             file_info_json = result_path / "file_info.json"
             info_json = result_path / "info.json"
@@ -364,9 +379,6 @@ class TypeT5Analysis:
                 info = json.load(f)
             
             correct_num_list = info['correct']
-
-
-
             assert len(preds[0]) == len(expects)
 
             expect_len = len(expects)
@@ -382,7 +394,7 @@ class TypeT5Analysis:
             params = [param for i, param in enumerate(params) if i not in none_idx]
 
 
-            problem = Problem(repo_name, src_path, file_path, proj_result_path, target, correct_num_list, params, preds, expects)
+            problem = Problem(repo_name, file_path, result_path, target, correct_num_list, params, preds, expects)
             
             before_solutions = [0,1,2,3,4,5,6,7,8,9]
             problem.set_before_solutions(before_solutions)
@@ -407,28 +419,20 @@ class TypeT5Analysis:
         
         print("Model loaded from file.")
 
-        ret_diff_result = []
-
-        
-
         for i, problem in enumerate(self.problem_list.get_problem_list()):
             if i % 500 == 0:
                 logger.info(f"({i+1}/{len(self.problem_list.get_problem_list())}) Processing...")
 
             start_time = time.time()
 
-            proj_result_path = problem.proj_result_path
-            src_path = problem.src_path
-
-            proj_idx = problem.file_path.find(src_path)
-            proj_path = problem.file_path[:proj_idx-1]
-            if proj_path.endswith("src"):
-                proj_path = proj_path[:-4]
-
+            proj_path = Path("BetterTypes4Py/repos/test") / problem.repo_name
             file_path = problem.file_path
 
+            if not os.path.exists(proj_path / file_path):
+                file_path = "src/" + file_path
+
             func_name = problem.target
-            result_path = DATA_PATH / "TypeT5" / proj_result_path
+            result_path = self.get_result_path(problem.repo_name, problem.file_path, problem.target)
 
             removed_json = result_path / "removed.json"
 
@@ -438,6 +442,9 @@ class TypeT5Analysis:
 
             file_start_time = time.time()
 
+            # if "_record_session" not in str(result_path):
+            #     continue
+
 
             with open(removed_json, 'r') as f:
                 removed_json = json.load(f)['generalDiagnostics']
@@ -446,6 +453,7 @@ class TypeT5Analysis:
                 filename = remove_prefix_filename(rem['file'])
                 filename = remove_suffix_filename(filename, is_removed=True)
                 rem['file'] = filename
+
             analysis_results = []
 
             # correct_diff = get_diff_by_remove(correct_json, removed_json)
@@ -476,10 +484,15 @@ class TypeT5Analysis:
             if file_path in annotations_info:
                 annotations = annotations_info[file_path]
             else:
-                with open(file_path, 'r') as f:
+                with open(proj_path / file_path, 'r') as f:
                     code = f.read()
                 annotations = count_annotations(code)
                 annotations_info[file_path] = annotations
+
+            # print(file_path)
+            # print(proj_path)
+            # input()
+            # continue
 
             proj_usage_infos.update_usage_infos(proj_path)
 
@@ -540,7 +553,6 @@ class TypeT5Analysis:
             before_correct_num_list = problem.correct_num_list
             for i in correct_num:
                 problem.add_correct_num(i)
-
 
             for sol in after_solutions:
                 if sol.num >= 10 or sol.num < 0:
@@ -950,10 +962,32 @@ class TypeGenAnalysis:
 
 
 class TigerAnalysis:
+    tool_name = "Tiger"
     problem_list: ProblemList
 
     def __init__(self):
         self.problem_list = self.load_transformed_data()
+
+    def change_test_info(self, test_info):
+        src_path = test_info["src_path"]
+        file_path = test_info["file_path"]
+
+        file_path = file_path[file_path.find(src_path)+len(src_path)+1:]
+
+        test_info["file_path"] = file_path
+        return test_info
+
+    def get_result_path(self, repo_name, file_path, target, param):
+        folder_name = output_folder_name(repo_name, file_path)
+        path = DATA_PATH / "Tiger" / folder_name / target / param
+        if not path.exists():
+            folder_name = output_folder_name(repo_name, "src/" + file_path)
+            path = DATA_PATH / "Tiger" / folder_name / target / param
+        
+        if not path.exists():
+            return None
+    
+        return path
 
     def load_transformed_data(self):
         error_num = 0
@@ -974,8 +1008,11 @@ class TigerAnalysis:
             if i % 1000 == 0:
                 logger.info(f"({i+1}/{len(tiger_results)}) Processing {data['repo_name']}")
 
+            data = self.change_test_info(data)
+
             repo_name = data['repo_name']
             src_path = data['src_path']
+            file_path = data["file_path"]
 
             proj_result_path = Path(data['result_path'])
             target = data['target']
@@ -987,9 +1024,11 @@ class TigerAnalysis:
             generic = data['generic']
             total_preds = data['total_predictions']
 
-            
+            result_path = self.get_result_path(repo_name, file_path, target, params[0])
+            if result_path is None:
+                error_num += 1
+                continue
 
-            result_path = DATA_PATH / "Tiger" / proj_result_path
             
             file_info_json = result_path / "file_info.json"
             info_json = result_path / "info.json"
@@ -1002,14 +1041,7 @@ class TigerAnalysis:
             with open(info_json, 'r') as f:
                 info = json.load(f)
 
-            with open(file_info_json, 'r') as f:
-                file_info = json.load(f)
-
-            
-            file_path = file_info['file_path']
             correct_num_list = info['correct']
-
-            expect_len = len(expects)
             modified_preds = preds
 
 
@@ -1068,12 +1100,14 @@ class TigerAnalysis:
             src_path = problem.src_path
 
             proj_idx = problem.file_path.find(src_path)
-            proj_path = Path.home() / "TypeInfer-Replication" / problem.src_path
-            file_path = Path.home() / "TypeInfer-Replication" / problem.file_path
+            proj_path = Path("ManyTypes4Py") / problem.src_path
+            file_path = problem.file_path
 
 
             func_name = problem.target
-            result_path = DATA_PATH / "Tiger" / proj_result_path
+            result_path = self.get_result_path(problem.repo_name, problem.file_path, problem.target, problem.params[0])
+            if result_path is None:
+                continue
 
             removed_json = result_path / "removed.json"
 
@@ -1118,7 +1152,7 @@ class TigerAnalysis:
             if file_path in annotations_info:
                 annotations = annotations_info[file_path]
             else:
-                with open(file_path, 'r') as f:
+                with open(proj_path / file_path, 'r') as f:
                     code = f.read()
                 annotations = count_annotations(code)
                 annotations_info[file_path] = annotations
@@ -1151,9 +1185,6 @@ class TigerAnalysis:
 
             params = problem.params
 
-            param_ctx_counter = defaultdict(dict)
-            ret_ctx_counter = defaultdict(dict)
-
             target_split = func_name.split('.')
             target_class = '.'.join(target_split[:-1])
             target_func = target_split[-1]
@@ -1169,8 +1200,6 @@ class TigerAnalysis:
                     err_idx.append(idx)
 
             modified_before_solutions = [sol for i, sol in enumerate(problem.before_solutions) if i not in err_idx]
-            modified_analysis_results = [sol for i, sol in enumerate(analysis_results) if i not in err_idx]
-            modified_preds = [sol for i, sol in enumerate(problem.preds) if i not in err_idx]
 
             problem.set_before_solutions(modified_before_solutions)
 
@@ -1318,6 +1347,32 @@ def analysis_typet5(is_evaluate):
     typet5_analysis.print_arg_ret_top_k()
 
 
+def analysis_typet5(is_evaluate):
+    typet5_analysis = TypeT5Analysis()
+    typet5_analysis.get_after_solutions()
+
+    with open(TYPET5_OUTPUT_PATH, 'wb') as f:
+        pickle.dump(typet5_analysis, f)
+
+    print("=== Function Signature Top k ===")
+    typet5_analysis.print_top_k()
+    print()
+    print("=== Base Function Signature Top k ===")
+    typet5_analysis.print_base_top_k()
+    typet5_analysis.print_arg_ret_top_k()
+
+def evaluate_typet5():
+    with open(TYPET5_OUTPUT_PATH, 'rb') as f:
+        typet5_analysis = pickle.load(f)
+
+    print("=== Function Signature Top k ===")
+    typet5_analysis.print_top_k()
+    print()
+    print("=== Base Function Signature Top k ===")
+    typet5_analysis.print_base_top_k()
+    typet5_analysis.print_arg_ret_top_k()
+
+
 def analysis_typegen(is_evaluate):
     typegen_analysis = TypeGenAnalysis()
     typegen_analysis.get_after_solutions()
@@ -1392,7 +1447,11 @@ if __name__ == "__main__":
     args = argument_parser.parse_args()
 
     if args.evaluate:
-        evaluate()
+        print(args.tool)
+        if args.tool == "typet5":
+            evaluate_typet5()
+        else:
+            evaluate()
         exit(0)
 
     if args.all:

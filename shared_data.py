@@ -58,19 +58,19 @@ def find_function_body(source_code: str, target_funcname: str, target_params: Li
         # assert len(matches) == 1, f"Multiple matches found for the function\n{source_code}\n{target_funcname}\n{target_params}"
         return finder.matches[-1]  # return last match
     else:
-        print("GG")
+        pass
         # print(source_code)
         # print(target_funcname)
         # print(target_params)
         # raise ValueError(f"Function {target_funcname} with parameters {target_params} not found in the provided source code.")
     return None
 
-def get_ast_cache(file_path: str, func_name: str, params: List[str]) -> ast.FunctionDef:
+def get_ast_cache(proj_path, file_path: str, func_name: str, params: List[str]) -> ast.FunctionDef:
     if file_path not in AST_CACHE:
         AST_CACHE[file_path] = {}
 
     if func_name not in AST_CACHE[file_path]:
-        with open(file_path, 'r') as file:
+        with open(proj_path / file_path, 'r') as file:
             file_content = file.read()
             try:
                 matched_function = find_function_body(file_content, func_name, params)

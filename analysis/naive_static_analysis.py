@@ -130,7 +130,7 @@ class ProjectUsageInfos:
         for file, usage_info in usage_infos.items():
             for class_hierarchy, func_infos in usage_info.items():
                 for func_name, info in func_infos.items():
-                    if filename == file and func_name == target_func and class_hierarchy == target_class:
+                    if str(proj_path / filename) == file and func_name == target_func and class_hierarchy == target_class:
                         continue
                     # if not (func_name == "add_nodes" or func_name == "test_ns_completion"):
                     #     continue
@@ -146,12 +146,14 @@ class ProjectUsageInfos:
 
     def extract_target_ctx_types(self, proj_path, filename, target_class, target_func):
         usage_infos = self.project_usage_infos[proj_path]
+
         ctx_types = CtxTypes()
         for file, usage_info in usage_infos.items():
-            if file != filename:
+            if file != str(proj_path / filename):
                 continue
             for class_hierarchy, func_infos in usage_info.items():
                 if class_hierarchy != target_class:
+                    
                     continue
 
                 for func_name, info in func_infos.items():

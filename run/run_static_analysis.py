@@ -81,12 +81,12 @@ class OverrideAnnotationTransformer(cst.CSTTransformer):
 def run_static_analysis_typet5(args):
     k, proj_path, file_path, result_path, func_name, pred_params, pred_return, output_file = args
 
-    if os.path.exists(result_path / output_file):
-        #logger.debug(f'{output_file} already exists')
-        # pass
-        return
+    # if os.path.exists(result_path / output_file):
+    #     #logger.debug(f'{output_file} already exists')
+    #     # pass
+    #     return
     
-    with open(str(file_path), 'r') as f:
+    with open(proj_path / file_path, 'r') as f:
         code = f.read()
 
     module = cst.parse_module(code)
@@ -98,7 +98,7 @@ def run_static_analysis_typet5(args):
     file_path = str(file_path)[:-3] + f'_{k}.py'
     
     # replace function signature
-    with open(str(file_path), 'w') as f:
+    with open(proj_path / file_path, 'w') as f:
         f.write(cand_module.code)
 
     # analysis original code

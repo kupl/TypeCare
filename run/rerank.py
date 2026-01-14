@@ -31,7 +31,7 @@ ONLY_STATIC_ANALYSIS = False
 STATIC_ANALYSIS = True
 CONTEXT_SCORE = True
 CONTEXT_CANDIDATE = True
-USE_CACHE = True
+USE_CACHE = False
 
 def collect_returns(tree: ast.AST) -> List[ast.Return]:
     return_nodes = []
@@ -348,7 +348,6 @@ def find_top_types_by_tree(variable_dict, ctx_types, target_ctx_types, var, clf,
 
 
         all_datas = np.array(all_datas)
-
 
         if all_datas.size > 0:
 
@@ -925,16 +924,15 @@ def check_var_change(solution_list, param_counter, ret_counter, funcname, clf, r
 
 
         try:
-            shutil.copy(str(first_solution.file_path), str(first_solution.file_path) + '.bak')
+            shutil.copy(str(first_solution.proj_path / first_solution.file_path), str(first_solution.proj_path / first_solution.file_path) + '.bak')
             with Pool() as pool:
                 pool.map(run_static_analysis_typet5, run_info_list)
         finally:
-            if os.path.exists(str(first_solution.file_path) + '.bak'):
-                shutil.move(str(first_solution.file_path) + '.bak', str(first_solution.file_path))
+            if os.path.exists(str(first_solution.proj_path / first_solution.file_path) + '.bak'):
+                shutil.move(str(first_solution.proj_path / first_solution.file_path) + '.bak', str(first_solution.proj_path / first_solution.file_path))
 
 
         for i, change_type in enumerate(zip(*candidate_combs)):
-
             with open(first_solution.result_path / f"candidate_{i}.json", 'r') as f:
                 analysis_results = json.load(f)['generalDiagnostics']
             
@@ -942,7 +940,7 @@ def check_var_change(solution_list, param_counter, ret_counter, funcname, clf, r
                 filename = remove_prefix_filename(mod['file'])
                 filename = remove_suffix_filename(filename, is_removed=False)
                 mod['file'] = filename
-
+                
             with open(first_solution.result_path / "removed.json", 'r') as f:
                 removed_json = json.load(f)['generalDiagnostics']
 
@@ -989,11 +987,11 @@ def check_var_change(solution_list, param_counter, ret_counter, funcname, clf, r
 
     return updated_solution_list, correct_num
     
-def return_rerank(solution_list, file_path, func_name, params, param_counter, ret_counter, clf, ret_clf):
+def return_rerank(solution_list, proj_path, file_path, func_name, params, param_counter, ret_counter, clf, ret_clf):
     if params[-1] != "__RET__":
         return solution_list, None
     
-    function_body = get_ast_cache(file_path, func_name, params)
+    function_body = get_ast_cache(proj_path, file_path, func_name, params)
 
     if function_body is None:
         return solution_list, None
@@ -1217,7 +1215,7 @@ def rerank(proj_path, file_path, result_path, func_name, expects, before_solutio
     if not ONLY_STATIC_ANALYSIS:
         
         if STATIC_ANALYSIS:
-            solution_list, ret_correct_num = return_rerank(solution_list, file_path, func_name, params, param_counter, ret_counter, clf, ret_clf)
+            solution_list, ret_correct_num = return_rerank(solution_list, proj_path, file_path, func_name, params, param_counter, ret_counter, clf, ret_clf)
         else:
             ret_correct_num = None
         # print("---")

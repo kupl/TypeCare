@@ -4,7 +4,6 @@ from typet5.type_check import parse_type_str
 
 class Problem:
     repo_name: str
-    src_path: str
     file_path: str
     target: str
     correct_num_list: list
@@ -17,9 +16,8 @@ class Problem:
     generic: bool
     total_preds: list
 
-    def __init__(self, repo_name, src_path, file_path, proj_result_path, target, correct_num_list, params, preds, expects, cat=None, generic=None, total_preds=None):
+    def __init__(self, repo_name, file_path, proj_result_path, target, correct_num_list, params, preds, expects, cat=None, generic=None, total_preds=None):
         self.repo_name = repo_name
-        self.src_path = src_path
         self.file_path = file_path
         self.proj_result_path = proj_result_path
         self.target = target

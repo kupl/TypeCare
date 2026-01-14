@@ -52,7 +52,7 @@ def make_data(
     if is_return:
         input_condition = (leven_sim > 0.75) and (jaro_sim > 0.95 or rev_jaro_sim > 0.95)
     else:
-        input_condition = (leven_sim > 0.7) and (jaro_sim > 0.9 or rev_jaro_sim > 0.9)
+        input_condition = (leven_sim > 0.9) and (jaro_sim > 0.9 or rev_jaro_sim > 0.9)
 
     # if is_return:
     #     print(leven_sim, jaro_sim, rev_jaro_sim)
@@ -70,8 +70,6 @@ def make_data(
         leven_sim_func = smart_levenshtein(funcname, cand_funcname)
         jaro_sim_func = jaro_winkler_similarity(funcname, cand_funcname)
         rev_jaro_sim_func = reversed_jaro_winkler_similarity(funcname, cand_funcname)
-
-
 
         for usage_ctx, _ in ctx.items():
             for cand_usage_ctx, type_counter in cand_ctx.items():
@@ -103,7 +101,7 @@ def make_data(
 
                     ctx_ratio = round(ctx_len / (ctx_len + cand_ctx_len), 2) if (ctx_len + cand_ctx_len) > 0 else -1
                     target_ctx_ratio = round(cand_ctx_len / (ctx_len + cand_ctx_len), 2) if (ctx_len + cand_ctx_len) > 0 else -1
-                    
+
                     data = [
                         leven_sim,
                         jaro_sim,

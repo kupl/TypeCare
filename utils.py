@@ -214,3 +214,7 @@ def annotate_function(func_node: ast.FunctionDef, typ: str, var_name, is_param=T
             func_node.returns = ast.Name(id=typ, ctx=ast.Load())
     
     return func_node
+
+def output_folder_name(repo_name, file_path):
+    folder_name = str(repo_name + "_" + file_path)[:-3].replace("/", "_")
+    return folder_name

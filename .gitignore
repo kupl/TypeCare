@@ -21,6 +21,7 @@ test_data.parquet
 *.7z
 ManyTypes4Py/repos/*
 BetterTypes4Py/repos/*
+scripts/*
 
 # Include Output
 !output/*

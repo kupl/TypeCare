@@ -29,6 +29,6 @@ TYPEGEN_OUTPUT_PATH = OUTPUT_PATH / "typegen_result.pkl"
 
 # Configuration for TypeT5
 TYPET5_PATH = PRED_PATH / "TypeT5"
-TYPET5_PREDICTION_PATH = TYPET5_PATH / 'evaluations/ManyTypes4Py' / 'double-traversal-EvalResultAllTest_0329.pkl'
-TYPET5_TRANSFORM_PATH = PRED_PATH / "TypeT5" / "typet5_function_transform.pkl"
+TYPET5_PREDICTION_PATH = PRED_PATH / "TypeT5" / 'double-traversal-EvalResultAllTest_0329.pkl'
+TYPET5_TRANSFORM_PATH = PRED_PATH / "TypeT5" / "transformed_result.json"
 TYPET5_OUTPUT_PATH = OUTPUT_PATH / "typet5_result.pkl"

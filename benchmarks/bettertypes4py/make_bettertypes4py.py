@@ -16,6 +16,7 @@ from typet5.utils import proj_root, read_file, write_file, not_none, pickle_load
 
 import pickle
 
+BENCHMARK_SCRIPTS_DIR = Path("benchmarks/bettertypes4py/")
 repos_dir = Path("BetterTypes4Py/repos")
 
 def count_repo_annots(rep):
@@ -28,7 +29,7 @@ def count_repo_annots(rep):
         return None
 
 def run():
-    all_repos = json.loads(read_file("mypy-dependents-by-stars.json"))
+    all_repos = json.loads(read_file(BENCHMARK_SCRIPTS_DIR / "mypy-dependents-by-stars.json"))
     all_repos = [GitRepo.from_json(r) for r in all_repos]
 
     def download_repos(
@@ -71,8 +72,8 @@ def run():
 
         print(f"Downloaded {len(downloaded_repos)}/{len(all_repos)} repos.")
 
-    useful_repos = "useful_repos.pkl"
-    repos_split = pickle_load(Path("repos_split.pkl"))
+    useful_repos = BENCHMARK_SCRIPTS_DIR / "useful_repos.pkl"
+    repos_split = pickle_load(BENCHMARK_SCRIPTS_DIR / "repos_split.pkl")
 
     with open(useful_repos, "rb") as f:
         useful_repos = pickle.load(f)

@@ -13,7 +13,8 @@ import json
 from multiprocessing import Pool
 import time
 
-from config import TYPET5_PREDICTION_PATH, HOME_PATH
+from pprint import pprint
+from config import TYPET5_PREDICTION_PATH
 
 class TypingOptionalCheckerLegacy(cst.CSTVisitor):
     """
@@ -293,6 +294,9 @@ def annotations_equal_by_code(annot1, annot2):
 def annotation_to_str(annotation):
     return cst.Module([]).code_for_node(annotation.annotation)
 
+def normalize_annotation(annotation):
+    return str((parse_type_str(annotation)).normalized())
+
 def process_prediction(args):
     index, candidate_preds, ret_idx, predicted_params, target_param_indexes, proj_path, result_path, file_path, sig_name, wrapper = args
 
@@ -304,8 +308,12 @@ def process_prediction(args):
             copy_path = f"{file_path[:-3]}_removed.py"
             shutil.copyfile(file_path, copy_path)
 
-            preds = [str(pred.normalized()) for pred in candidate_preds]
-            pred_returns = cst.Annotation(cst.parse_expression(preds[ret_idx]))
+            preds = candidate_preds
+
+            if preds[ret_idx] is None:
+                pred_returns = None
+            else:
+                pred_returns = cst.Annotation(cst.parse_expression(preds[ret_idx]))
 
             pred_params = {
                 param: cst.Annotation(cst.parse_expression(preds[i])) for i, param in enumerate(predicted_params) if i in target_param_indexes
@@ -325,8 +333,8 @@ def process_prediction(args):
             output, err = p.communicate()
             output_json = output.decode("utf-8")
 
-            # with open(result_path / f"removed.json", 'w') as f:
-            #     f.write(output_json)
+            with open(result_path / f"removed.json", 'w') as f:
+                f.write(output_json)
         finally:
             if os.path.exists(copy_path):
                 os.remove(copy_path)
@@ -336,8 +344,11 @@ def process_prediction(args):
         try:
             shutil.copyfile(file_path, copy_path)
 
-            preds = [str(p) for p in candidate_preds]
-            pred_returns = cst.Annotation(cst.parse_expression(preds[ret_idx]))
+            preds = candidate_preds
+            if preds[ret_idx] is None:
+                pred_returns = None
+            else:
+                pred_returns = cst.Annotation(cst.parse_expression(preds[ret_idx]))
 
             pred_params = {
                 param: cst.Annotation(cst.parse_expression(preds[i])) for i, param in enumerate(predicted_params) if i in target_param_indexes
@@ -357,26 +368,165 @@ def process_prediction(args):
             output, err = p.communicate()
             output_json = output.decode("utf-8")
 
-            # with open(result_path / f"modified_{index}.json", 'w') as f:
-            #     f.write(output_json)
+            with open(result_path / f"modified_{index}.json", 'w') as f:
+                f.write(output_json)
         finally:
             if os.path.exists(copy_path):
                 os.remove(copy_path)
 
 
 def run():
+    result_path = Path('prediction/TypeT5')
+
+    with open(result_path / 'typet5_function_transform.pkl', 'rb') as f:
+        evalr = pickle.load(f)
+
+    # prj_roots = evalr.project_roots
+    # print(f'Number of project roots: {len(prj_roots)}')
+
+
+    # result = evalr.return_predictions()
+    result_path_set = set()
+
+    path_set = set([])
+
+    start_time = time.time()
+    sig_count = 0
+    file_time_dict = {}
+
+
+    # for data in evalr:
+    #     expected = data['expects']
+    #     predictions = data['predictions']
+    #     params = data['params']
+
+    #     print(params)
+    #     print(predictions)
+
+    #     if not params:
+    #         continue
+
+    #     repo_name = data['repo_name']
+    #     file_path = data['file_path']
+    #     proj_path = file_path.split(repo_name)[0] + repo_name
+    #     sig_name = data['target']
+
+    #     # check if file exists
+    #     if not os.path.exists(file_path):
+    #         print(f'File not found: {file_path}')
+    #         continue
+
+    #     file_time_start = time.time()
+
+    #     result_path = Path('data/TypeT5_11054') / data['result_path']
+
+    #     correct_set = set()
+    #     incorrect_set = set()
+
+    #     if '__RET__' in params:
+    #         ret_idx = params.index('__RET__')
+    #         target_param_indexes = [i for i in range(len(params)) if i != ret_idx]
+    #     else:
+    #         print(f'Return type not found in params for {file_path}')
+    #         raise Exception()
+        
+    #     # match type
+    #     for i, preds in enumerate(predictions):
+    #         is_real_match = True
+    #         for pred, expect in zip(preds, expected):
+    #             if pred is None:
+    #                 if expect is None:
+    #                     continue
+    #                 else:
+    #                     raise Exception("Prediction is None but expected is not None")
+
+    #             if normalize_annotation(pred) != normalize_annotation(expect):
+    #                 is_real_match = False
+    #                 break
+
+    #         if is_real_match:
+    #             correct_set.add(i)
+    #         else:
+    #             incorrect_set.add(i)
+
+    #     with open(str(file_path), 'r') as f:
+    #         code = f.read()
+
+    #     module = cst.parse_module(code)
+    #     wrapper = cst.metadata.MetadataWrapper(module)
+
+    #     checker_optional = TypingOptionalCheckerLegacy()
+    #     wrapper.visit(checker_optional)
+    #     uses_optional = checker_optional.found_optional_import
+        
+    #     if uses_optional:
+    #         # change typing.Optional to Optional in predictions
+    #         new_predictions = []
+    #         for preds in predictions:
+    #             new_preds = []
+    #             for pred in preds:
+    #                 if pred is None:
+    #                     new_preds.append(pred)
+    #                     continue
+    #                 new_pred = str(pred).replace('typing.Optional', 'Optional')
+    #                 new_preds.append(new_pred)
+    #             new_predictions.append(new_preds)
+    #         if predictions != new_predictions:
+    #             print(f'Normalized predictions for Optional in {file_path}')
+    #             print(f'Before: {predictions}')
+    #             print(f'After: {new_predictions}')
+    #         predictions = new_predictions
+
+
+    #     if not os.path.exists(result_path):
+    #         os.makedirs(result_path)
+
+    #     info = {
+    #         'sig_name': data['target'],
+    #         'correct': list(correct_set),
+    #         'incorrect': list(incorrect_set),
+    #     }
+
+
+    #     with open(result_path / "info.json", 'w') as f:
+    #         json.dump(info, f)
+
+
+    #     print(f'Processing {file_path}...')
+
+    #     try:
+    #         shutil.copy(str(file_path), str(file_path) + '.bak')
+    #         datas = []
+
+    #         for num, candidate_preds in enumerate(predictions):
+    #             datas.append(
+    #                 (num, candidate_preds, ret_idx, params, target_param_indexes, str(proj_path), result_path, str(file_path), sig_name, wrapper)
+    #             )
+            
+    #         datas.append(
+    #             (None, predictions[0], ret_idx, params, target_param_indexes, str(proj_path), result_path, str(file_path), sig_name, wrapper)
+    #         )
+    #         with Pool() as pool:
+    #             pool.map(process_prediction, datas)
+    #     finally:
+    #         # restore original file
+    #         if os.path.exists(str(file_path) + ".bak"):
+    #             shutil.move(str(file_path) + ".bak", str(file_path))
+
+    #     file_time_end = time.time()
+    #     file_time = file_time_end - file_time_start
+    #     file_time_dict[str(result_path)] = file_time
+
+    
     with open(TYPET5_PREDICTION_PATH, 'rb') as f:
         evalr = pickle.load(f)
 
     prj_roots = evalr.project_roots
-    print(f'Number of project roots: {len(prj_roots)}')
+    # print(f'Number of project roots: {len(prj_roots)}')
 
 
     result = evalr.return_predictions()
-    start_time = time.time()
-    sig_count = 0
-    file_time_dict = {}
-    
+    total_datas = []
     for proj, sig_map in result.items():
         print(f'Project: {proj}')
         proj_name = proj.name
@@ -396,7 +546,10 @@ def run():
                 expected_returns = expected.returns
                 predicted_params = sig.params
                 predicted_returns = sig.returns
-                predicted_returns = str(parse_type_str(cst.Module([]).code_for_node(predicted_returns.annotation)).normalized())
+                try:
+                    predicted_returns = str(parse_type_str(cst.Module([]).code_for_node(predicted_returns.annotation)).normalized())
+                except:
+                    continue
 
                 # check expected_params is all None
                 is_all_none = True
@@ -416,7 +569,7 @@ def run():
 
                 first_dir = src_name.split('.')[0]
 
-                proj_path = Path(str(proj).replace("/home/wonseok/", str(HOME_PATH)))
+                proj_path = Path(str(proj).replace("/home/wonseokoh/TypeT5/ManyTypes4Py/repos/test", str(Path.home() / "TypeCare" / "BetterTypes4Py" / "repos" / "test")))
 
                 file_path = proj_path / src_path
                 # check if file exists
@@ -430,23 +583,30 @@ def run():
 
                 file_time_start = time.time()
 
-                result_path = Path('/home/wonseokoh/Ours/results/TypeT5') / str(proj_name) / src_name.replace('.', '_') / sig_name.replace('.', '_')
+                file_name = Path(str(proj_name)) / src_name.replace('.', '_')
+                result_path = Path('data/TypeT5_1118') / str(file_name).replace('/', '_') / sig_name.replace('.', '_')
 
+
+                # if str(result_path) != "data/TypeT5_1118/ShadowTemplate__beautiful-python-3/design_patterns_behavioural_command_mixer/MuteVolumeCommand___init__":
+                #     continue
 
                 # Check Parameter
                 param_infos = list(expected_params.items())
-                predicted_params = list(predicted_params.keys())
+                predicted_params_keys = list(predicted_params.keys())
+
                 target_param_indexes = []
 
                 for (param_key, typ) in param_infos:
                     if typ is None:
                         continue
-                    if param_key in predicted_params:
-                        target_param_indexes.append(predicted_params.index(param_key))
+                    if param_key in predicted_params_keys:
+                        target_param_indexes.append(predicted_params_keys.index(param_key))
 
+                
                 top_pred = [str(pred.normalized()) for pred in top_pred]
                 ret_idx = top_pred.index(predicted_returns)
                 assert ret_idx >= 0, "Return type not found in predictions"
+
 
                 expected_types = []
 
@@ -461,6 +621,68 @@ def run():
 
                 correct_set = set()
                 incorrect_set = set()
+
+                # print(proj_name)
+                # print(pid)
+                # print(sig_name)
+                # print(src_path)
+                # # print(file_path)
+                # print(expected_params)
+                # print(predicted_params)
+                # print(target_param_indexes)
+                # print(all_predcitions)
+
+
+                expects = []
+
+                for param, expected_type in expected_params.items():
+                    if expected_type == None:
+                        expects.append(None)
+                        continue
+
+                    expected_type = str(parse_type_expr(expected_type.annotation).normalized())
+                    expects.append(expected_type)
+
+                if expected_returns == None:
+                    expects.append(None)
+                else:
+                    code = cst.Module([]).code_for_node(expected_returns.annotation)
+                    expected_type = str(parse_type_str(code).normalized())
+                    expects.append(expected_type)
+
+                # if len(all_predcitions[0]) != len(expects):
+                #     # assert ret_idx == (len(expects) - 1), print(all_predcitions[0], expects, ret_idx)
+                #     new_all_predictions = []
+                #     for predictions in all_predcitions:
+                #         new_all_predictions.append(predictions[:len(expects)])
+
+                #     all_predcitions = new_all_predictions
+
+                #     t1 = [str(t.normalized()) for t in all_predcitions[0]]
+
+                #     test_t = []
+                #     for t in predicted_params.values():
+                #         code = cst.Module([]).code_for_node(t.annotation)
+                #         t = str(parse_type_str(code).normalized())
+                #         test_t.append(t)
+
+                #     t2 = test_t + [predicted_returns]
+
+                #     assert t1 == t2, print(t1, t2, expects) 
+
+                # data = {
+                #     "repo_name": proj_name,
+                #     "file_path": src_path,
+                #     "target": sig_name,
+                #     "params": predicted_params_keys + ["__RET__"],
+                #     "predictions": [[str(t) for t in predictions ] for predictions in all_predcitions],
+                #     "expects": expects
+                # }
+
+                # total_datas.append(data)
+
+                # continue
+
                 
                 # match type
                 for i, preds in enumerate(all_predcitions):
@@ -518,6 +740,10 @@ def run():
                             new_pred = str(pred).replace('typing.Optional', 'Optional')
                             new_preds.append(new_pred)
                         new_predictions.append(new_preds)
+                    if all_predcitions != new_predictions:
+                        print(f'Normalized predictions for Optional in {file_path}')
+                        print(f'Before: {all_predcitions}')
+                        print(f'After: {new_predictions}')
                     all_predcitions = new_predictions
 
                 if not os.path.exists(result_path):
@@ -540,11 +766,11 @@ def run():
 
                     for num, candidate_preds in enumerate(all_predcitions):
                         datas.append(
-                            (num, candidate_preds, ret_idx, predicted_params, target_param_indexes, str(proj_path), result_path, str(file_path), sig_name, wrapper)
+                            (num, candidate_preds, ret_idx, predicted_params_keys, target_param_indexes, str(proj_path), result_path, str(file_path), sig_name, wrapper)
                         )
                     
                     datas.append(
-                        (None, all_predcitions[0], ret_idx, predicted_params, target_param_indexes, str(proj_path), result_path, str(file_path), sig_name, wrapper)
+                        (None, all_predcitions[0], ret_idx, predicted_params_keys, target_param_indexes, str(proj_path), result_path, str(file_path), sig_name, wrapper)
                     )
                     with Pool() as pool:
                         pool.map(process_prediction, datas)
@@ -557,6 +783,8 @@ def run():
                 file_time = file_time_end - file_time_start
                 file_time_dict[str(result_path)] = file_time
 
+    with open('typet5_transformed_result.json', 'w') as f:
+        json.dump(total_datas, f, indent=4)
 
     end_time = time.time()
     elapsed_time = end_time - start_time

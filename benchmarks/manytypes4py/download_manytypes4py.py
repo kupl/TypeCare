@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
+from urllib.parse import urlparse
 
 def download_repo():
     with open("benchmarks/manytypes4py/ManyTypes4PyDataset.spec", "r") as f:
@@ -11,7 +13,7 @@ def download_repo():
     repos_dir = Path("ManyTypes4Py/repos")
 
     if not repos_dir.exists():
-        repos_dir.mkdir()
+        repos_dir.mkdir(parents=True)
 
     def download_single(line):
         splited_line = line.split()
@@ -21,31 +23,35 @@ def download_repo():
         else:
             commit_id = None
 
-        repo = github_url.split("/")[-1].replace(".git", "")
+        path = urlparse(github_url).path
+        repo = path.lstrip('/').removesuffix('.git')
 
-        print("Downloading", repo)
+        # print("Downloading", repo)
 
         repo_dir = repos_dir / repo
 
         if repo_dir.exists():
             print(f"{repo} already exists, skipping")
-            continue
+            return None
 
         try:
             repo = git.Repo.clone_from(github_url, repo_dir)
             repo.git.checkout(commit_id)
         except git.exc.GitCommandError:
-            print(f"Failed to download {repo}, skipping")
+            # print(f"Failed to download {repo}, skipping")
             if repo_dir.exists():
                 shutil.rmtree(repo_dir)
-            continue
+            return None
+        
+        return repo_dir
 
-        print(f"Checked out commit {commit_id} in {repo_dir}")
+        # print(f"Checked out commit {commit_id} in {repo_dir}")
 
     print("Downloading repos from Github...")
-    t_start = time.time()
+
+    max_workers=10
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        fs = [executor.submit(download_single, line) for line in spec]
+        fs = [executor.submit(download_single, line) for line in spec if "JojiKoike/OMWebAppEngine" in line]
         rs = [f.result() for f in tqdm(as_completed(fs), total=len(fs))]
 
     print("All repos downloaded.")
