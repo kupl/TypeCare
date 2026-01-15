@@ -16,7 +16,6 @@ hypothesis==6.137.1
 ipywidgets==8.1.7
 jupyterlab_widgets==3.0.15
 Levenshtein==0.27.1
-libcst==0.4.2
 lintrunner==0.12.7
 mpmath==1.3.0
 networkx==3.5
@@ -53,3 +52,4 @@ GitPython
 dateparser
 datasets
 scikit-learn==1.6.1
+pyright==1.1.390
