@@ -11,6 +11,9 @@ This repository provides the replication package for the ICSE 2026 paper: **"Typ
 * **Reusable:** Our package includes detailed documentation and modular scripts, allowing researchers to not only reproduce the results in the paper but also easily adapt TypeCare to new datasets (such as example code).
 
 ## Overall Structure
+
+#### Source Code
+
 - analysis/         
   - run.py         (Main script to run the tool)
 - pre_analysis/    
@@ -26,7 +29,6 @@ This repository provides the replication package for the ICSE 2026 paper: **"Typ
   - train.py            (Train the type similarity model for BetterTypes4Py dataset)
   - train_many4types.py (Train the type similarity model for ManyTypes4Py dataset)
 
-
 ## System Environment
 
 The experimental results reported in the paper were obtained using the **Main Server** environment. Additionally, we verified that TypeCare's re-ranking and augmentation algorithms are lightweight enough to run on a **Laptop**.
@@ -41,9 +43,9 @@ Component | Specification |
 **Lightweight Execution Setup (Laptop)**
 Component | Specification |
 | :---: | :--- |
-| CPU | Apple M3 |
+| CPU | iMac Apple M1 |
 | RAM | 16GB |
-| OS | macOS Sonoma |
+| OS | macOS Sequoia 15.5 |
 
 ### Common Requirements
 
@@ -213,7 +215,7 @@ python -m analysis.run --evaluate
   Model     Exact T1(%)    Exact T3(%)    Exact T5(%)     Base T1(%)     Base T3(%)     Base T5(%)
 -------  --------------  -------------  -------------  -------------  -------------  -------------
  TypeT5           71.4%          77.2%          78.9%          78.1%          83.7%          85.4%
-  +Ours  (+13.6%) 81.1%  (+7.4%) 82.9%  (+5.8%) 83.5%  (+9.2%) 85.3%  (+4.3%) 87.3%  (+3.0%) 88.0%
+  +Ours  (+13.4%) 80.9%  (+7.4%) 82.9%  (+5.8%) 83.5%  (+9.2%) 85.3%  (+4.3%) 87.3%  (+3.0%) 88.0%
 -------  --------------  -------------  -------------  -------------  -------------  -------------
   Tiger           67.8%          78.0%          80.2%          75.8%          85.5%          88.0%
   +Ours  (+11.8%) 75.8%  (+4.4%) 81.4%  (+4.5%) 83.8%  (+6.5%) 80.7%  (+2.3%) 87.5%  (+2.7%) 90.4%
@@ -253,7 +255,7 @@ tar -I 'zstd -T8' -xvf ManyTypes4Py.tar.zst
 
 2. Run pre-analysis
 
-**This section will create `data` contents of the pre-computed result**
+**This section will create `data/` contents of the pre-computed result**
 
 Generate static analysis results using pyright:
 
@@ -272,7 +274,7 @@ It makes the result of static type analysis in the directory `data`.
 
 3. Run Re-ranking & Augmentation
 
-**This section will create `output` contents of the pre-computed result**
+**This section will create `output/` contents of the pre-computed result**
 
 Now, you can refine the model answers using the trained type similarity model:
 ```bash
