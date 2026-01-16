@@ -5,7 +5,8 @@ ENV HOME=/home
 WORKDIR $HOME
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y git wget unzip curl p7zip-full build-essential
+RUN apt-get update && \
+    apt-get install -y git wget unzip curl p7zip-full build-essential
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # update pip

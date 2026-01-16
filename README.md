@@ -47,6 +47,11 @@ Component | Specification |
 | RAM | 16GB |
 | OS | macOS Sequoia 15.5 |
 
+**Note: Compatibility Issue with Apple Silicon (M-series)** 
+Currently, there is a known issue where pyright causes errors when building Docker images on Apple Silicon. We recommend **building the image in a Linux environment** as a workaround until this issue is resolved in a future update.
+
+(Despite this issue, you can still view the evaluation tables using the provided pre-computed data.)
+
 ### Common Requirements
 
 - Storage: At least **20GB** of available disk space is required to store the datasets and pre-computed outputs.
@@ -57,8 +62,11 @@ Component | Specification |
 
 We recommend using the provided Docker image for a consistent evaluation environment.
 ```bash
+git clone https://github.com/kupl/TypeCare.git
+cd TypeCare
+
 # Build the Docker image
-docker build -t typecare .
+docker build --no-cache --platform=linux/amd64 -t typecare .
 
 # Run the container
 docker run -it typecare
@@ -183,6 +191,8 @@ cd /home/TypeCare
 python -m pre_analysis.run --tool="example"
 ```
 
+**Note:** The initial run may take a few minutes to download the required tokenizers.
+
 It annotates candidates as type of parameter `x`, runs static analysis, and finally saves results in `data/Example`.
 
 2. **Run TypeCare:** Apply the Re-ranking & Augmentation algorithm.
@@ -214,20 +224,22 @@ cd /home/TypeCare
 # Evaluate pre-computed outputs
 python -m analysis.run --evaluate
 ```
-**Note:** The initial run may take a few minutes to download the required tokenizers.
 
 ```bash
 === Main Table ===
-  Model     Exact T1(%)    Exact T3(%)    Exact T5(%)     Base T1(%)     Base T3(%)     Base T5(%)
--------  --------------  -------------  -------------  -------------  -------------  -------------
- TypeT5           71.4%          77.2%          78.9%          78.1%          83.7%          85.4%
-  +Ours  (+13.4%) 80.9%  (+7.4%) 82.9%  (+5.8%) 83.5%  (+9.2%) 85.3%  (+4.3%) 87.3%  (+3.0%) 88.0%
--------  --------------  -------------  -------------  -------------  -------------  -------------
-  Tiger           67.8%          78.0%          80.2%          75.8%          85.5%          88.0%
-  +Ours  (+11.8%) 75.8%  (+4.4%) 81.4%  (+4.5%) 83.8%  (+6.5%) 80.7%  (+2.3%) 87.5%  (+2.7%) 90.4%
--------  --------------  -------------  -------------  -------------  -------------  -------------
-TypeGen           65.4%          73.4%          75.0%          71.6%          79.9%          81.6%
-  +Ours  (+12.5%) 73.6%  (+7.6%) 79.0%  (+6.8%) 80.1%  (+9.9%) 78.7%  (+5.4%) 84.2%  (+4.9%) 85.6%
+  Model     Exact T1(%)    Exact T3(%)    Exact T5(%)      Base T1(%)     Base T3(%)     Base T5(%)
+-------  --------------  -------------  -------------  --------------  -------------  -------------
+ TypeT5           71.4%          77.2%          78.9%           78.1%          83.7%          85.4%
+  +Ours  (+13.3%) 80.9%  (+7.4%) 82.9%  (+5.8%) 83.5%   (+9.1%) 85.2%  (+4.3%) 87.3%  (+3.0%) 88.0%
+-------  --------------  -------------  -------------  --------------  -------------  -------------
+  Tiger           67.8%          78.0%          80.2%           75.8%          85.5%          88.0%
+  +Ours  (+15.2%) 78.1%  (+7.3%) 83.7%  (+6.0%) 85.0%  (+10.0%) 83.4%  (+4.9%) 89.7%  (+3.7%) 91.3%
+-------  --------------  -------------  -------------  --------------  -------------  -------------
+TypeGen           65.4%          73.4%          75.0%           71.6%          79.9%          81.6%
+  +Ours  (+12.5%) 73.6%  (+7.6%) 79.0%  (+6.8%) 80.1%   (+9.9%) 78.7%  (+5.4%) 84.2%  (+4.9%) 85.6%
+
+**Note:** The latest pyright update has introduced minor changes to the output.
+
 
 === Function Signature Table ===
 ... (continue with the rest of the results)
@@ -267,12 +279,9 @@ Generate static analysis results using pyright:
 
 ```bash
 # in the Docker container
-
-# Check pyright is installed
-pyright --version
+cd /home/TypeCare
 
 # Run pyright for each candidates
-cd /home/TypeCare
 python -m pre_analysis.run --tool=<typet5|tiger|typegen>
 ```
 It makes the result of static type analysis in the directory `data`.
