@@ -1,10 +1,17 @@
+---
+license: mit
+
+doi: 10.57xxx/xxxxx.xxxxx
+---
+
 # Artifact for TypeCare (ICSE 2026)
 
 This repository provides the replication package for the ICSE 2026 paper: **"TypeCare: Boosting Python Type Inference Models via Context-Aware Re-Ranking and Augmentation"**([pre-print](https://prl.korea.ac.kr/papers/icse26typecare.pdf))
 
 ## Purpose & Artifact Badges
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18263563.svg)](https://doi.org/10.5281/zenodo.18263563)
+Source Code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18263563.svg)](https://doi.org/10.5281/zenodo.18263563) 
+Dataset: [![Hugging Face DOI](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-DOI-orange)](https://doi.org/10.57967/hf/7547)
 
 * **Available:** The artifact is persistently archived on Zenodo.
 * **Functional:** We provide a comprehensive Docker environment, a minimal working example ([Kick-the-Tire](#kick-the-tire-small-example)), and step-by-step instructions to verify that the tool is operational and correctly evaluates experimental results.
