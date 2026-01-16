@@ -1564,17 +1564,13 @@ if __name__ == "__main__":
     args = argument_parser.parse_args()
 
     if args.evaluate:
-        print(args.tool)
-        if args.tool == "typet5":
-            evaluate_typet5()
-        else:
-            evaluate()
+        evaluate()
         exit(0)
 
     if args.all:
         analysis_typet5()
         analysis_typegen()
-        # analysis_tiger()
+        analysis_tiger()
     else:
         if args.tool == "typet5":
             analysis_typet5()
