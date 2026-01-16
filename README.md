@@ -45,7 +45,7 @@ Component | Specification |
 | :---: | :--- |
 | CPU | iMac Apple M1 |
 | RAM | 16GB |
-| OS | macOS Sequoia 15.5 |
+| OS | macOS Sequoia |
 
 **Note: Compatibility Issue with Apple Silicon (M-series)** 
 Currently, there is a known issue where pyright causes errors when building Docker images on Apple Silicon. We recommend **building the image in a Linux environment** as a workaround until this issue is resolved in a future update.
