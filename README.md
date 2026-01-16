@@ -81,6 +81,10 @@ pip install libcst==0.4.2
 # Install pyright
 pip install pyright
 pyright --version
+
+# Expected Output
+* Install prebuilt node ..... done.
+pyright 1.1.xxx
 ```
 
 ### Pre-computed Outputs

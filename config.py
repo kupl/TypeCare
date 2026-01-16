@@ -35,4 +35,4 @@ TYPET5_OUTPUT_PATH = OUTPUT_PATH / "typet5_result.pkl"
 
 # Configuration for Example
 EXAMPLE_TRANSFORM_PATH = PRED_PATH / "Example" / "transformed_result.json"
-EXAMPLE_OUTPUT_PATH = OUTPUT_PATH / "tiger_result.pkl"
+EXAMPLE_OUTPUT_PATH = OUTPUT_PATH / "example_result.pkl"
