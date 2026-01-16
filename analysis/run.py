@@ -7,30 +7,29 @@ from logger import logger
 from collections import Counter, defaultdict
 from argparse import ArgumentParser
 import difflib
-import glob
-from pprint import pprint
 import time
 from utils import remove_prefix_filename, remove_suffix_filename, output_folder_name
 from evaluation.print_table import PrintTable
 
 from config import (
     DATA_PATH, 
-    TYPET5_PREDICTION_PATH, 
     TYPET5_TRANSFORM_PATH, 
     TYPET5_OUTPUT_PATH,
-    TIGER_RESULT_PATH, 
+    TIGER_TRANSFORM_PATH, 
     TIGER_OUTPUT_PATH,
-    TYPEGEN_TESTSET_PATH,
+    TYPEGEN_TRANSFORM_PATH,
     TYPEGEN_OUTPUT_PATH,
+    EXAMPLE_TRANSFORM_PATH,
+    EXAMPLE_OUTPUT_PATH,
     MODEL_PATH
 )
     
-from typet5.type_check import parse_type_str, PythonType, normalize_type
+from typet5.type_check import parse_type_str
 
 
 from evaluation.eval import Problem, ProblemList
-from run.rerank import naive_rerank, rerank
-from analysis.naive_static_analysis import analyze_code, ProjectUsageInfos
+from run.rerank import rerank
+from analysis.naive_static_analysis import ProjectUsageInfos
 
 
 
@@ -295,35 +294,6 @@ class TypeT5Analysis:
 
     def __init__(self):
         self.problem_list = self.load_transformed_data()
-
-    def export_fail_json(self):
-        fail_json = {}
-        for problem in self.problem_list.get_problem_list():
-            result_path = problem.proj_result_path
-
-            if problem.after_solutions[0] in problem.correct_num_list:
-                continue
-
-            first_num = problem.after_solutions[0]
-
-            try:
-                params = problem.params
-                preds = problem.preds[first_num]
-                expects = problem.expects
-            except Exception as e:
-                raise e
-
-            data = {}
-            for param, pred, expect in zip(params, preds, expects):
-                data[str(param)] = {
-                    "pred": str(pred),
-                    "expect": str(expect)
-                }
-
-            fail_json[str(result_path)] = data
-
-        with open("fail.json", 'w') as f:
-            json.dump(fail_json, f, indent=4)
 
     def get_result_path(self, repo_name, file_path, target):
         folder_name = output_folder_name(repo_name, file_path)
@@ -635,8 +605,7 @@ class TypeGenAnalysis:
         problem_list = ProblemList()
 
         # typegen_path = Path.home() / "TypeGen"
-        result_path = TYPEGEN_TESTSET_PATH
-
+        result_path = TYPEGEN_TRANSFORM_PATH
 
         with open(result_path, "r") as f:
             typegen_results = json.load(f)
@@ -731,25 +700,22 @@ class TypeGenAnalysis:
             if i % 500 == 0:
                 logger.info(f"({i+1}/{len(self.problem_list.get_problem_list())}) Processing...")
 
-            start_time = time.time()
+            proj_path = Path("ManyTypes4Py/repos") / problem.repo_name
+            file_path = problem.file_path
 
-            proj_result_path = problem.result_path
-            src_path = problem.src_path
-
-            proj_idx = problem.file_path.find(src_path)
-            proj_path = Path.home() / "TypeGen" / problem.src_path
-            file_path = Path.home() / "TypeGen" / problem.file_path
+            if not os.path.exists(proj_path / file_path):
+                file_path = "src/" + file_path
 
             func_name = problem.target
-            result_path = DATA_PATH / "TypeGen" / proj_result_path
+            result_path = self.get_result_path(problem.repo_name, problem.file_path, problem.target, problem.params[0])
 
             removed_json = result_path / "removed.json"
 
             if not os.path.exists(removed_json):
-                # logger.error("Correct json file not found: %s", removed_json)
                 continue
 
             file_start_time = time.time()
+
 
             with open(removed_json, 'r') as f:
                 removed_json = json.load(f)['generalDiagnostics']
@@ -761,37 +727,37 @@ class TypeGenAnalysis:
 
             analysis_results = []
 
+            start_time = time.time()
 
-            for i in range(len(problem.preds)):
+            for i in range(10):
+                modified_json_file = result_path / f"modified_{i}.json"
                 try:
-                    modified_json = result_path / f"modified_{i}.json"
-                    with open(modified_json, 'r') as f:
+                    with open(modified_json_file, 'r') as f:
                         modified_json = json.load(f)['generalDiagnostics']
-
                     for mod in modified_json:
                         filename = remove_prefix_filename(mod['file'])
                         filename = remove_suffix_filename(filename, is_removed=False)
                         mod['file'] = filename
-
-
-                    modified_diff = get_diff_by_remove(modified_json, removed_json)
-
-                    
-
-                    analysis_results.append(modified_diff)
-                except FileNotFoundError:
-                    # logger.error("Modified json file not found: %s", modified_json)
-                    # analysis_results.append(None)
+                except Exception as e:
                     continue
+
+                modified_diff = get_diff_by_remove(modified_json, removed_json)
+                analysis_results.append(modified_diff)
+
+            
 
             if file_path in annotations_info:
                 annotations = annotations_info[file_path]
             else:
-                with open(file_path, 'r') as f:
+                with open(proj_path / file_path, 'r') as f:
                     code = f.read()
                 annotations = count_annotations(code)
                 annotations_info[file_path] = annotations
 
+            proj_usage_infos.update_usage_infos(proj_path)
+
+
+            # Annotation Info
             param_count, ret_count = annotations
 
             param_counter_list = [
@@ -800,10 +766,9 @@ class TypeGenAnalysis:
             ]
 
             ret_counter_list = [
-                counter_list for func, counter_list in ret_count.items()
+                counter_list for func, counter_list in ret_count.items() 
                 if func != problem.target # and func.split('.')[:-1] == problem.target.split('.')[:-1]
             ]
-
 
             param_counter = defaultdict(Counter)
             ret_counter = defaultdict(Counter)
@@ -820,9 +785,6 @@ class TypeGenAnalysis:
 
             params = problem.params
 
-            param_ctx_counter = defaultdict(dict)
-            ret_ctx_counter = defaultdict(dict)
-
             target_split = func_name.split('.')
             target_class = '.'.join(target_split[:-1])
             target_func = target_split[-1]
@@ -838,8 +800,6 @@ class TypeGenAnalysis:
                     err_idx.append(idx)
 
             modified_before_solutions = [sol for i, sol in enumerate(problem.before_solutions) if i not in err_idx]
-            modified_analysis_results = [sol for i, sol in enumerate(analysis_results) if i not in err_idx]
-            modified_preds = [sol for i, sol in enumerate(problem.preds) if i not in err_idx]
 
             problem.set_before_solutions(modified_before_solutions)
 
@@ -850,7 +810,6 @@ class TypeGenAnalysis:
                 continue
 
             start_infer_time = time.time()
-
             after_solutions, correct_num = rerank(proj_path, file_path, result_path, func_name, problem.expects, problem.before_solutions, analysis_results, problem.preds, params, param_counter, ret_counter, is_property, ctx_types, target_ctx_types, problem.total_preds, clf, ret_clf)
             
             end_infer_time = time.time()
@@ -878,15 +837,6 @@ class TypeGenAnalysis:
                 continue
             if not analysis_results:
                 continue
-
-        # with open("typegen_time.txt", 'w') as f:
-        #     f.write(f"Total Time: {total_time}\n")
-        #     f.write(f"Infer Time: {infer_time}\n")
-        #     f.write(f"Average Time: {total_time / len(self.problem_list.get_problem_list())}\n")
-        #     f.write(f"Average Infer Time: {infer_time / len(self.problem_list.get_problem_list())}\n")
-
-        with open("typegen_time_dict.json", 'w') as f:
-            json.dump(time_dict, f, indent=4)
 
     def calc_before_top_k(self):
         return self.problem_list.calc_before_top_k()
@@ -918,51 +868,6 @@ class TypeGenAnalysis:
     def print_arg_ret_top_k(self):
         self.problem_list.print_arg_ret_top_k()
 
-    def var_to_type_dict(self):
-        var_to_type = self.problem_list.var_to_type_dict()
-
-        # sort by value
-
-        var_to_type = {k: v for k, v in sorted(var_to_type.items(), key=lambda item: len(item[1]["type_set"]))}
-        with open("var_to_type.json", 'w') as f:
-            json.dump(var_to_type, f, indent=4)
-
-
-    def export_fail_json(self):
-        fail_json = {}
-        for problem in self.problem_list.get_problem_list():
-            result_path = problem.proj_result_path
-
-            if not problem.after_solutions:
-                continue
-
-            if problem.after_solutions[0] in problem.correct_num_list:
-                continue
-
-            first_num = problem.after_solutions[0]
-
-            try:
-                params = problem.params
-                preds = problem.preds[first_num]
-                expects = problem.expects
-            except Exception as e:
-                print(first_num)
-                print(problem.preds)
-                print(problem.correct_num_list)
-                raise e
-
-            data = {}
-            for param, pred, expect in zip(params, preds, expects):
-                data[str(param)] = {
-                    "pred": str(pred),
-                    "expect": str(expect)
-                }
-
-            fail_json[str(result_path)] = data
-
-        with open("typegen_fail.json", 'w') as f:
-            json.dump(fail_json, f, indent=4)
-
 
 class TigerAnalysis:
     tool_name = "Tiger"
@@ -989,7 +894,7 @@ class TigerAnalysis:
         problem_list = ProblemList()
 
         # tiger_path = Path.home() / "TypeInfer-Replication"
-        result_path = TIGER_RESULT_PATH
+        result_path = TIGER_TRANSFORM_PATH
 
 
 
@@ -1171,111 +1076,12 @@ class TigerAnalysis:
 
             params = problem.params
 
-            param_ctx_counter = defaultdict(dict)
-            ret_ctx_counter = defaultdict(dict)
-
             target_split = func_name.split('.')
             target_class = '.'.join(target_split[:-1])
             target_func = target_split[-1]
 
             ctx_types = proj_usage_infos.extract_ctx_types(proj_path, file_path, target_class, target_func)
             target_ctx_types = proj_usage_infos.extract_target_ctx_types(proj_path, file_path, target_class, target_func)
-
-            # proj_result_path = problem.proj_result_path
-            # src_path = problem.src_path
-
-            # proj_idx = problem.file_path.find(src_path)
-            # proj_path = Path("ManyTypes4Py") / problem.src_path
-            # file_path = problem.file_path
-
-
-            # func_name = problem.target
-            # result_path = self.get_result_path(problem.repo_name, problem.file_path, problem.target, problem.params[0])
-            # if result_path is None:
-            #     continue
-
-            # removed_json = result_path / "removed.json"
-
-            # if not os.path.exists(removed_json):
-            #     # logger.error("Removed json file not found: %s", removed_json)
-            #     continue
-
-            # file_start_time = time.time()
-
-            # with open(removed_json, 'r') as f:
-            #     removed_json = json.load(f)['generalDiagnostics']
-
-            # for rem in removed_json:
-            #     filename = remove_prefix_filename(rem['file'])
-            #     filename = remove_suffix_filename(filename, is_removed=True)
-            #     rem['file'] = filename
-
-            # analysis_results = []
-
-            # start_time = time.time()
-
-            # for i in range(len(problem.preds)):
-            #     try:
-            #         modified_json = result_path / f"modified_{i}.json"
-            #         with open(modified_json, 'r') as f:
-            #             modified_json = json.load(f)['generalDiagnostics']
-
-            #         for mod in modified_json:
-            #             filename = remove_prefix_filename(mod['file'])
-            #             filename = remove_suffix_filename(filename, is_removed=False)
-            #             mod['file'] = filename
-
-
-            #         modified_diff = get_diff_by_remove(modified_json, removed_json)
-
-            #         analysis_results.append(modified_diff)
-            #     except FileNotFoundError:
-            #         # logger.error("Modified json file not found: %s", modified_json)
-            #         # analysis_results.append(None)
-            #         continue
-
-            # if file_path in annotations_info:
-            #     annotations = annotations_info[file_path]
-            # else:
-            #     with open(proj_path / file_path, 'r') as f:
-            #         code = f.read()
-            #     annotations = count_annotations(code)
-            #     annotations_info[file_path] = annotations
-
-            # param_count, ret_count = annotations
-
-            # param_counter_list = [
-            #     counter_list for func, counter_list in param_count.items() 
-            #     if func != problem.target # and func.split('.')[:-1] == problem.target.split('.')[:-1]
-            # ]
-
-            # ret_counter_list = [
-            #     counter_list for func, counter_list in ret_count.items()
-            #     if func != problem.target # and func.split('.')[:-1] == problem.target.split('.')[:-1]
-            # ]
-
-
-            # param_counter = defaultdict(Counter)
-            # ret_counter = defaultdict(Counter)
-
-            # for annot_list in param_counter_list:
-            #     for annot in annot_list:
-            #         for var, typ in annot.items():
-            #             param_counter[var][typ] += 1
-
-            # for annot_list in ret_counter_list:
-            #     for annot in annot_list:
-            #         for var, typ in annot.items():
-            #             ret_counter[var][typ] += 1
-
-            # params = problem.params
-
-            # target_split = func_name.split('.')
-            # target_class = '.'.join(target_split[:-1])
-            # target_func = target_split[-1]
-
-            # ctx_types = proj_usage_infos.extract_ctx_types(proj_path, file_path, target_class, target_func)
-            # target_ctx_types = proj_usage_infos.extract_target_ctx_types(proj_path, file_path, target_class, target_func)
 
             is_property = False
 
@@ -1354,61 +1160,301 @@ class TigerAnalysis:
     def print_arg_ret_top_k(self):
         self.problem_list.print_arg_ret_top_k()
 
-    def var_to_type_dict(self):
-        var_to_type = self.problem_list.var_to_type_dict()
 
-        # sort by value
+class ExampleAnalysis:
+    tool_name = "Example"
+    problem_list: ProblemList
 
-        var_to_type = {k: v for k, v in sorted(var_to_type.items(), key=lambda item: len(item[1]["type_set"]))}
-        with open("tiger_var_to_type.json", 'w') as f:
-            json.dump(var_to_type, f, indent=4)
+    def __init__(self):
+        self.problem_list = self.load_transformed_data()
+
+    def get_result_path(self, repo_name, file_path, target, param):
+        folder_name = output_folder_name(repo_name, file_path)
+        path = DATA_PATH / "Example" / folder_name / target.replace('.', '_') / param
+        if not path.exists():
+            folder_name = output_folder_name(repo_name, "src/" + file_path)
+            path = DATA_PATH / "Example" / folder_name / target.replace('.', '_') / param
+        
+        if not path.exists():
+            return None
+    
+        return path
+
+    def load_transformed_data(self):
+        error_num = 0
+        logger.info("Loading Example transformed prediction results...")
+        problem_list = ProblemList()
+
+        # tiger_path = Path.home() / "TypeInfer-Replication"
+        result_path = EXAMPLE_TRANSFORM_PATH
 
 
-    def export_fail_json(self):
-        fail_json = {}
-        for problem in self.problem_list.get_problem_list():
-            result_path = problem.proj_result_path
 
-            if not problem.after_solutions:
+        with open(result_path, "r") as f:
+            example_results = json.load(f)
+
+        logger.info("Example transformed prediction results loaded: %i projects", len(example_results))
+
+        for i, data in enumerate(example_results):
+            if i % 1000 == 0:
+                logger.info(f"({i+1}/{len(example_results)}) Processing {data['repo_name']}")
+
+            repo_name = data['repo_name']
+            file_path = data["file_path"]
+
+            target = data['target']
+            params = data['params']
+            preds = data['predictions']
+            expects = data['expects']
+
+            cat = data['cat']
+            generic = data['generic']
+            total_preds = data['total_predictions']
+
+            result_path = self.get_result_path(repo_name, file_path, target, params[0])
+            if result_path is None:
+                error_num += 1
                 continue
 
-            if problem.after_solutions[0] in problem.correct_num_list:
+            info_json = result_path / "info.json"
+
+            if not os.path.exists(info_json):
+                error_num += 1
                 continue
 
-            first_num = problem.after_solutions[0]
 
-            # print(first_num)
-            # print(problem.preds)
-            # print(len(problem.preds))
+            with open(info_json, 'r') as f:
+                info = json.load(f)
 
-            try:
-                params = problem.params
-                preds = problem.preds[first_num]
-                expects = problem.expects
-            except Exception as e:
-                print(first_num)
-                print(problem.preds)
-                print(problem.correct_num_list)
-                raise e
+            correct_num_list = info['correct']
+            modified_preds = preds
 
-            data = {}
-            for param, pred, expect in zip(params, preds, expects):
-                data[str(param)] = {
-                    "pred": str(pred),
-                    "expect": str(expect)
-                }
 
-            fail_json[str(result_path)] = data
 
-        with open("tiger_fail.json", 'w') as f:
-            json.dump(fail_json, f, indent=4)
+            # drop param and preds if element of expects is None
+            none_idx = [i for i, expect in enumerate(expects) if expect is None]
+            expects = [str(parse_type_str(expect)) for i, expect in enumerate(expects) if i not in none_idx]
+            preds = []
+            for pred in modified_preds:
+                new_pred = []
+                for i, x in enumerate(pred):
+                    if i in none_idx:
+                        continue
 
+                    try:
+                        modified_type = str(parse_type_str(x))
+                    except Exception as e:
+                        modified_type = x
+
+                    new_pred.append(modified_type)
+
+                preds.append(new_pred)
+
+            # preds = [pred for i, pred in enumerate(modified_preds) if i not in none_idx]
+            params = [param for i, param in enumerate(params) if i not in none_idx]
+
+            problem = Problem(repo_name, file_path, result_path, target, correct_num_list, params, preds, expects, cat=cat, generic=generic, total_preds=total_preds)
+            
+            prob_len = min(len(problem.preds), 10)
+
+            before_solutions = [i for i in range(prob_len)]
+            problem.set_before_solutions(before_solutions)
+
+            problem_list.add_problem(problem)
+        return problem_list
+
+    def get_after_solutions(self):
+        annotations_info = {}
+        proj_usage_infos = ProjectUsageInfos()
+
+        total_time = 0
+        infer_time = 0
+
+        time_dict = {}
+
+        with open(MODEL_PATH / 'many_random_forest_model.pkl', 'rb') as f:
+            clf = pickle.load(f)
+        with open(MODEL_PATH / 'many_ret_random_forest_model.pkl', 'rb') as f:
+            ret_clf = pickle.load(f)
+
+        for i, problem in enumerate(self.problem_list.get_problem_list()):
+            if i % 500 == 0:
+                logger.info(f"({i+1}/{len(self.problem_list.get_problem_list())}) Processing...")
+
+            proj_path = Path(".") / problem.repo_name
+            file_path = problem.file_path
+
+            if not os.path.exists(proj_path / file_path):
+                file_path = "src/" + file_path
+
+            func_name = problem.target
+            result_path = self.get_result_path(problem.repo_name, problem.file_path, problem.target, problem.params[0])
+
+            removed_json = result_path / "removed.json"
+
+            if not os.path.exists(removed_json):
+                continue
+
+            file_start_time = time.time()
+
+
+            with open(removed_json, 'r') as f:
+                removed_json = json.load(f)['generalDiagnostics']
+
+            for rem in removed_json:
+                filename = remove_prefix_filename(rem['file'])
+                filename = remove_suffix_filename(filename, is_removed=True)
+                rem['file'] = filename
+
+            analysis_results = []
+
+            start_time = time.time()
+
+            for i in range(10):
+                modified_json_file = result_path / f"modified_{i}.json"
+                try:
+                    with open(modified_json_file, 'r') as f:
+                        modified_json = json.load(f)['generalDiagnostics']
+                    for mod in modified_json:
+                        filename = remove_prefix_filename(mod['file'])
+                        filename = remove_suffix_filename(filename, is_removed=False)
+                        mod['file'] = filename
+                except Exception as e:
+                    continue
+
+                modified_diff = get_diff_by_remove(modified_json, removed_json)
+                analysis_results.append(modified_diff)
+
+            
+
+            if file_path in annotations_info:
+                annotations = annotations_info[file_path]
+            else:
+                with open(proj_path / file_path, 'r') as f:
+                    code = f.read()
+                annotations = count_annotations(code)
+                annotations_info[file_path] = annotations
+
+            proj_usage_infos.update_usage_infos(proj_path)
+
+
+            # Annotation Info
+            param_count, ret_count = annotations
+
+            param_counter_list = [
+                counter_list for func, counter_list in param_count.items() 
+                if func != problem.target # and func.split('.')[:-1] == problem.target.split('.')[:-1]
+            ]
+
+            ret_counter_list = [
+                counter_list for func, counter_list in ret_count.items() 
+                if func != problem.target # and func.split('.')[:-1] == problem.target.split('.')[:-1]
+            ]
+
+            param_counter = defaultdict(Counter)
+            ret_counter = defaultdict(Counter)
+
+            for annot_list in param_counter_list:
+                for annot in annot_list:
+                    for var, typ in annot.items():
+                        param_counter[var][typ] += 1
+
+            for annot_list in ret_counter_list:
+                for annot in annot_list:
+                    for var, typ in annot.items():
+                        ret_counter[var][typ] += 1
+
+            params = problem.params
+
+            target_split = func_name.split('.')
+            target_class = '.'.join(target_split[:-1])
+            target_func = target_split[-1]
+
+            ctx_types = proj_usage_infos.extract_ctx_types(proj_path, file_path, target_class, target_func)
+            target_ctx_types = proj_usage_infos.extract_target_ctx_types(proj_path, file_path, target_class, target_func)
+
+            is_property = False
+
+            err_idx = []
+            for idx, analysis_result in enumerate(analysis_results):
+                if analysis_result is None:
+                    err_idx.append(idx)
+
+            modified_before_solutions = [sol for i, sol in enumerate(problem.before_solutions) if i not in err_idx]
+
+            problem.set_before_solutions(modified_before_solutions)
+
+            if modified_before_solutions == []:
+                end_time = time.time()
+                total_time += end_time - start_time
+                time_dict[str(result_path)] = end_time - file_start_time
+                continue
+
+            start_infer_time = time.time()
+
+            after_solutions, correct_num = rerank(proj_path, file_path, result_path, func_name, problem.expects, problem.before_solutions, analysis_results, problem.preds, params, param_counter, ret_counter, is_property, ctx_types, target_ctx_types, problem.total_preds, clf, ret_clf)
+            
+            end_infer_time = time.time()
+            infer_time += end_infer_time - start_infer_time
+
+            after_solutions_num = [sol.num for sol in after_solutions]
+            
+            problem.set_after_solutions(after_solutions_num)
+
+            before_correct_num_list = problem.correct_num_list
+            for i in correct_num:
+                problem.add_correct_num(i)
+
+            for sol in after_solutions:
+                if sol.num >= 10:
+                    problem.add_pred(sol.num, sol.pred)
+
+            end_time = time.time()
+            total_time += end_time - start_time
+            file_time = end_time - file_start_time
+
+            time_dict[str(result_path)] = file_time
+
+            if not after_solutions:
+                continue
+            if not analysis_results:
+                continue
+
+    def calc_before_top_k(self):
+        return self.problem_list.calc_before_top_k()
+
+    def calc_after_top_k(self):
+        return self.problem_list.calc_after_top_k()
+
+    def return_top_k(self):
+        return self.problem_list.return_top_k()
+
+    def print_top_k(self):
+        self.problem_list.print_top_k()
+
+    def return_base_top_k(self):
+        return self.problem_list.return_base_top_k()
+
+    def print_base_top_k(self):
+        self.problem_list.print_base_top_k()
+
+    def return_categorized_top_k(self):
+        return self.problem_list.return_categorized_top_k()
+
+    def print_categorized_top_k(self):
+        self.problem_list.print_categorized_top_k()
+
+    def return_arg_ret_top_k(self):
+        return self.problem_list.return_arg_ret_top_k()
+
+    def print_arg_ret_top_k(self):
+        self.problem_list.print_arg_ret_top_k()
 
 def debug_typet5():
     typet5_analysis = TypeT5Analysis()
     typet5_analysis.debug()
 
-def analysis_typet5(is_evauate):
+def analysis_typet5():
     typet5_analysis = TypeT5Analysis()
     typet5_analysis.get_after_solutions()
 
@@ -1470,6 +1516,16 @@ def analysis_tiger():
     print()
     tiger_analysis.print_arg_ret_top_k()
 
+def analysis_example():
+    example_analysis = ExampleAnalysis()
+    example_analysis.get_after_solutions()
+
+    with open(EXAMPLE_OUTPUT_PATH, 'wb') as f:
+        pickle.dump(example_analysis, f)
+
+    print("Top K")
+    example_analysis.print_top_k()
+
 
 def evaluate():
     with open(TYPET5_OUTPUT_PATH, 'rb') as f:
@@ -1518,7 +1574,7 @@ if __name__ == "__main__":
     if args.all:
         analysis_typet5()
         analysis_typegen()
-        analysis_tiger()
+        # analysis_tiger()
     else:
         if args.tool == "typet5":
             analysis_typet5()
@@ -1526,3 +1582,5 @@ if __name__ == "__main__":
             analysis_typegen()
         elif args.tool == "tiger":
             analysis_tiger()
+        elif args.tool == "example":
+            analysis_example()

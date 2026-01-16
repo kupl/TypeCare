@@ -1,6 +1,7 @@
 __pycache__
 results/*
 other_script/*
+output/*
 *.pkl
 *.parquet
 *.log
@@ -13,18 +14,21 @@ copy/*
 *.txt
 data/*
 backup/*
-prediction/*
+prediction/Tiger
+prediction/TypeGen
+prediction/TypeT5
+prediction/typesim_model
 train_data.parquet
 ret_test_data.parquet
 ret_train_data.parquet
 test_data.parquet
 *.7z
 ManyTypes4Py/repos/*
+*.tar.zst
 BetterTypes4Py/repos/*
 scripts/*
-
-# Include Output
-!output/*
+.gitattributes
 
 # Include requirements
 !requirements.txt
+!prediction/Example/*

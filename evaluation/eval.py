@@ -156,36 +156,6 @@ class ProblemList:
 
     def remove_duplicate(self):
         pass
-        # for problem in self.problem_list:
-        #     problem.remove_duplicate()
-
-    def var_to_type_dict(self):
-        var_to_type = defaultdict(dict)
-
-
-
-        for problem in self.problem_list:
-            if not problem.after_solutions:
-                continue
-
-            before_pred = problem.preds[0]
-
-            for var, type_str in zip(problem.params, before_pred):
-                if var == "__RET__":
-                    continue 
-                name = problem.file_path + "@" + problem.target
-                var_to_type[var][name] = {
-                    "before_type": type_str,
-                    "expected_type": problem.expects[0],
-                    "before_correct": 0 in problem.correct_num_list,
-                    "after_correct": problem.after_solutions[0] in problem.correct_num_list
-                }
-
-                type_set = var_to_type[var].get("type_set", [])
-                type_set.append(type_str)
-                var_to_type[var]["type_set"] = list(set(type_set))
-
-        return var_to_type
 
     def check_base_correct(self, preds, expects):
         for pred, expect in zip(preds, expects):
@@ -290,7 +260,7 @@ class ProblemList:
         after_top_k_percent = [round(x, 1) for x in after_top_k_percent]
 
         diff_k = [after_top_k[i] - before_top_k[i] for i in range(15)]
-        diff_k_percent = [round((after_top_k_percent[i] - before_top_k_percent[i]) / before_top_k_percent[i] * 100, 1) for i in range(15)]
+        diff_k_percent = [round((after_top_k_percent[i] - before_top_k_percent[i]) / before_top_k_percent[i] * 100, 1) if before_top_k_percent[i] != 0 else "inf" for i in range(15)]
 
         print(
             tabulate([["Top 1", before_top_k[0], f"{before_top_k_percent[0]}%", after_top_k[0], f"{after_top_k_percent[0]}%", f"{diff_k_percent[0]}%"],

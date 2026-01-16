@@ -1,70 +1,210 @@
-## Overall Structure
-It's not set in stone yet.
+# Artifact for TypeCare (ICSE 2026)
 
+This repository provides the replication package for the ICSE 2026 paper: **"TypeCare: Boosting Python Type Inference Models via Context-Aware Re-Ranking and Augmentation"**([pre-print](https://prl.korea.ac.kr/papers/icse26typecare.pdf))
+
+## Purpose & Artifact Badges
+
+* **Available:** The artifact is persistently archived on Zenodo [Insert Zenodo DOI Link Here].
+* **Functional:** We provide a comprehensive Docker environment, a minimal working example ([Kick-the-Tire](#kick-the-tire-small-example)), and step-by-step instructions to verify that the tool is operational and correctly evaluates experimental results.
+* **Reusable:** Our package includes detailed documentation and modular scripts, allowing researchers to not only reproduce the results in the paper but also easily adapt TypeCare to new datasets (such as example code).
+
+## Overall Structure
 - analysis/         
   - run.py         (Main script to run the tool)
-- pre_analysis/    (Pre-analysis scripts for generating static type analysis results)
+- pre_analysis/    
+  - run.py         (Pre-analysis scripts for generating static type analysis results)
 - evaluation/      (Evaluation scripts for generating and printing results)
   - eval.py        (Evaluate the results)
   - print_table.py (Print the results in a table format)
 - run/             (The code for main components)
   - make_data.py   (Generate the data for the type similarity model)
   - rerank.py      (Implementation for Re-ranking and Augmentation)
-  - run_static_analyis.py (Run static analysis tools)
-- train.py        (Train the type similarity model for BetterTypes4Py dataset)
-- train_many4types.py (Train the type similarity model for ManyTypes4Py dataset)
+  - run_static_analyis.py (Run static analysis tools (pyright))
+- train_model/
+  - train.py            (Train the type similarity model for BetterTypes4Py dataset)
+  - train_many4types.py (Train the type similarity model for ManyTypes4Py dataset)
 
+
+## System Environment
+
+The experimental results reported in the paper were obtained using the **Main Server** environment. Additionally, we verified that TypeCare's re-ranking and augmentation algorithms are lightweight enough to run on a **Laptop**.
+
+**Main Experimental Setup (Server)**
+Component | Specification |
+| :---: | :--- |
+| CPU | Intel(R) Xeon(R) Silver 4214 |
+| RAM | 128GB |
+| OS | Ubuntu 22.04 LTS |
+
+**Lightweight Execution Setup (Laptop)**
+Component | Specification |
+| :---: | :--- |
+| CPU | Apple M3 |
+| RAM | 16GB |
+| OS | macOS Sonoma |
+
+### Common Requirements
+
+- Storage: At least **20GB** of available disk space is required to store the datasets and pre-computed outputs.
 
 ## Installation and Setup
 
-You can use the provided Docker image to evaluate the results.
-```bash
-docker build -t typecare .
-```
+### Docker Setup
 
-Then, you can run the Docker container with the following command:
+We recommend using the provided Docker image for a consistent evaluation environment.
 ```bash
+# Build the Docker image
+docker build -t typecare .
+
+# Run the container
 docker run -it typecare
 ```
 
-In the container, you have to install a requirement library:
-- [libcst](https://libcst.readthedocs.io/en/latest/#) (v0.4.2)
+### Requirements
 
-You can install libcst by the following command:
+Within the container, ensure the following library is installed.
+- [libcst](https://libcst.readthedocs.io/en/latest/#) (v0.4.2)
+- [pyright](https://github.com/microsoft/pyright)
 
 ```bash
 # in the Docker container
+
+# Install libcst
 . "$HOME/.cargo/env"
 rustc --version # rustc 1.92.0 ...
-
 pip install libcst==0.4.2
+
+# Install pyright
+pip install pyright
+pyright --version
 ```
 
-We provided pre-computed outputs to save the time.
-To reproduce the results, you can run the following command:
+### Pre-computed Outputs
+
+To save time during evaluation, we provided pre-computed outputs.
 ```bash
 # in the Docker container
 cd TypeCare
 
-# Download pre-computed outputs
+# Download and extract pre-computed outputs
 wget ...
-7z x data.7z
+tar -xvf pre_computed.tar.zst
 ```
 
-The pre-computed outputs were organized as follows:
-- `predictions` It contains outputs of existing language models (TypeT5, TypeGen, TIGER) and our type similarity models (Related to [this section](#train-the-type-similarity-model)).
-- `data` It contains outputs of static analysis tools when annotating types created by the models (Related to [this section](#run-pre-analysis)). 
-- `output` It contains outputs for an evaluation (Related to [this section](#run-re-ranking--augmentation)). 
+**The pre-computed data is organized as follows:**
+- `prediction/` Contains outputs from baseline models ([TypeT5](https://github.com/utopia-group/TypeT5), [TypeGen](https://github.com/JohnnyPeng18/TypeGen), [TIGER](https://github.com/cs-wangchong/TypeInfer-Replication)) and our type similarity models.
+- `data/` Contains static analysis results generated when annotating types predicted by the models.
+- `output/` Final refined outputs used for evaluation.
 
-## Evaluation in the Docker Container
+## Kick the Tire (Small Example)
 
-Using the pre-computed outputs, you can evaluate results through the following command:
+We provide a minimal example to illustrate the workflow. You can better understand how TypeCare operates by following the code provided below. The target code is located in `example/example.py`.
+
+<details>
+<summary>Show/Hide Code</summary>
+
+```python
+def foo(x: int):
+    return x + 1
+```
+</details>
+</br>
+
+We assume a learning-based model has generated the top-10 candidates, as shown in `prediction/Example/transformed_result.json`.` In this example, the correct type int is initially ranked 3rd.
+
+<details>
+<summary>Show/Hide Output</summary>
+
+```json
+[
+    {
+        "repo_name": "example",
+        "file_path": "example.py",
+        "target": "foo",
+        "params": [
+            "x"
+        ],
+        "predictions": [
+            [
+                "str"
+            ],
+            [
+                "list"
+            ],
+            [
+                "int"
+            ],
+            [
+                "bool"
+            ],
+            [
+                "tuple"
+            ],
+            [
+                "set"
+            ],
+            [
+                "float"
+            ],
+            [
+                "bytes"
+            ],
+            [
+                "None"
+            ],
+            [
+                "dict"
+            ]
+        ],
+        "total_predictions": null,
+        "expects": [
+            "int"
+        ],
+        "cat": "builtins",
+        "generic": true
+    }
+]
+```
+</details>
+</br>
+
+1. **Run pre-analysis:** Generate static analysis (pyright) results for the candidates.
 ```bash
+python -m pre_analysis.run --tool="example"
+```
+
+It annotates candidates as type of parameter `x`, runs static analysis, and finally saves results in `data/Example`.
+
+2. **Run TypeCare:** Apply the Re-ranking & Augmentation algorithm.
+```bash
+python -m analysis.run --tool="example"
+```
+
+**Expected Output:** The log will show that the rank of the correct type (int) has been improved:
+```bash
+...
+Top K
++-------+--------+------------+-------+-----------+------+
+| Rank  | Before | Before (%) | After | After (%) | Diff |
++-------+--------+------------+-------+-----------+------+
+| Top 1 |   0    |    0.0%    |   1   |  100.0%   | inf% |
+| Top 3 |   1    |   100.0%   |   1   |  100.0%   | 0.0% |
+| Top 5 |   1    |   100.0%   |   1   |  100.0%   | 0.0% |
++-------+--------+------------+-------+-----------+------+
+```
+As shown above, TypeCare successfully re-ranks the correct candidate from 3rd to 1st.
+
+## Evaluation 
+
+To evaluate the pre-computed outputs and reproduce the main tables (Tables 3–6) from the paper, run:
+```bash
+# in the Docker container
+cd /home/TypeCare
+
 # Evaluate pre-computed outputs
 python -m analysis.run --evaluate
 ```
-Please note that the initial run may take a while as it will download tokenizers.
-Then, you can obtain main reulsts of Table 3~7 in the paper such as follows:
+**Note:** The initial run may take a few minutes to download the required tokenizers.
 
 ```bash
 === Main Table ===
@@ -83,127 +223,77 @@ TypeGen           65.4%          73.4%          75.0%          71.6%          79
 ... (continue with the rest of the results)
 ```
 
-## Reproduction Results
+## Reproduction Guide
 
-You can also reproduce the pre-computed results.
-From this section, I will introduce steps to reproduce datas.
+**Note: This process may take some time**
 
-### Download Benchmarks
+1. Download Benchmarks
 
 To run the analysis, you need to prepare the data.
 - [ManyTypes4Py](https://github.com/saltudelft/many-types-4-py-dataset)
 - [BetterTypes4Py](https://github.com/utopia-group/TypeT5)
 
-However, some datas were not accessible because repositories were deleted.
-Thus, we provided datas used in our experiments via [Hugging Face platform](https://huggingface.co/datasets/marinelay/TypeCare-Datasets).
-You can see datasets repository [here](https://huggingface.co/datasets/marinelay/TypeCare-Datasets).
+Due to the deletion of some original repositories, we provide the specific versions of the datasets used in our experiments via [Hugging Face](https://huggingface.co/datasets/marinelay/TypeCare-Datasets).
 
 You are able to download the datasets via the following commands:
 
 ```bash
-# in docker container
+# in the Docker container
 cd /home/TypeCare
 
-# Download datasets
+# Download and extract datasets
 hf download --repo-type dataset marinelay/TypeCare-Datasets --local-dir .
 tar -I 'zstd -T8' -xvf BetterTypes4Py.tar.zst
 tar -I 'zstd -T8' -xvf ManyTypes4Py.tar.zst
 ```
 
-### Kick the Tire
+**Note:** Use -T8 to utilize 8 CPU cores for faster extraction; adjust as needed.
 
-...
-
-### Reproduction Steps
-
-#### Run pre-analysis
+2. Run pre-analysis
 
 **This section will create `data` contents of the pre-computed result**
 
-TypeCare uses results of static type analysis when annotating types created by the language models. We use the tool, named [pyright](https://github.com/microsoft/pyright), to perform static type analysis.
-
-Thus, we provided scripts to do this step:
+Generate static analysis results using pyright:
 
 ```bash
-# in docker container
+# in the Docker container
+
+# Check pyright is installed
+pyright --version
+
+# Run pyright for each candidates
 cd /home/TypeCare
 python -m pre_analysis.run --tool=<typet5|tiger|typegen>
 ```
-
 It makes the result of static type analysis in the directory `data`.
 
-#### Train the Type Similarity Model
 
-**This section will create `predictions/typesim_model` contents of the pre-computed result**
-
-You can train the type similarity model using the following command:
-```bash
-python train.py
-python train_many4types.py
-```
-#### Run Re-ranking & Augmentation
+3. Run Re-ranking & Augmentation
 
 **This section will create `output` contents of the pre-computed result**
 
 Now, you can refine the model answers using the trained type similarity model:
 ```bash
+# Run for all tools
 python -m analysis.run --all
-```
-If you want to run specific tools, you can specify them using the `--tool` argument:
-```bash
-python -m analysis.run --tool=<typet|typegen|tiger>
+
+# Or specify a single tool
+python -m analysis.run --tool=<typet5|typegen|tiger>
 ```
 Then, the analysis will be performed and the results will be saved in the `output` directory.
 
+## Train the Type Similarity Model
 
-### Data
-To run the analysis, you need to prepare the data.
-- [ManyTypes4Py](https://github.com/saltudelft/many-types-4-py-dataset)
-- [BetterTypes4Py](https://github.com/utopia-group/TypeT5)
+**This section will create `predictions/typesim_model` contents of the pre-computed result**
 
-#### Download ManyTypes4Py
-```
-cd ~
-wget -O ManyTypes4PyDataset-v0.7.tar.gz "https://zenodo.org/records/5244636/files/ManyTypes4PyDataset-v0.7.tar.gz?download=1"
-tar -xvzf ManyTypes4PyDataset-v0.7.tar.gz
-```
-
-
-You can download the datasets and place them in the `repos/` directory.
-
-### Run Tool
-
-#### 1-1. Download Pre-Data to run the tool
-You can download the pre-computed data files from the following links: https://figshare.com/s/ee0936a79dc01992a1ea
-
-#### 1-2. Generate Pre-Data
-If you want to generate the pre-computed data files, you can run the following command.
-
-##### Pre-analysis
-To run our tool, you first run pre-analysis to generate results of static type analysis:
+If you want to train the type similarity model, please follow command:
 ```bash
-python -m pre_analysis.tiger
-python -m pre_analysis.typet5
-python -m pre_analysis.typegen
+python -m train_model.train.py
+python -m train_model.train_many4types.py
 ```
-This script will generate the necessary data files in the `data/` directory.
-Note that the script execution may take a while.
 
-##### Train the Type Similarity Model
-You can train the type similarity model using the following command:
-```bash
-python train.py
-python train_many4types.py
-```
-This will create the two models for each dataset in the `results/typesim_model/` directory.
+## Citation
 
-### 2. Refine the model Answers
-Now, you can refine the model answers using the trained type similarity model:
-```bash
-python -m analysis.run --all
-```
-If you want to run specific tools, you can specify them using the `--tool` argument:
-```bash
-python -m analysis.run --tool [typet5,typegen,tiger]
-```
-Then, the analysis will be performed and the results will be saved in the `output/` directory.
+TODO:
+If you find this work useful for your research, please consider citing our paper ...
+

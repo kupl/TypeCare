@@ -14,6 +14,7 @@ RUN pip install --upgrade pip
 # Install Python dependencies
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pyright --version
 
 RUN git clone https://github.com/utopia-group/TypeT5.git
 RUN pip install --no-cache-dir -e TypeT5

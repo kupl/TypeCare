@@ -10,10 +10,10 @@ import ast
 from .utils import TypingOptionalCheckerLegacy, CSTAnnotator
 from .utils import FunctionLocator, annotate_function
 from typet5.type_check import parse_type_str
+from argparse import ArgumentParser
 
 class PreAnalysis:
     tool_name: str
-    save_path: str
 
     def load_data(self):
         model_output_path = Path("prediction") / self.tool_name
@@ -57,12 +57,7 @@ class PreAnalysis:
                 new_preds.append(new_pred)
             new_predictions.append(new_preds)
 
-        if predictions != new_predictions:
-            print("Changed Optional types in predictions.")
-
         return new_predictions
-
-
 
     def process_single(self, data):
         i, predictions, project_path, file_path, relative_path, params, output_path = data
@@ -94,12 +89,10 @@ class PreAnalysis:
 
     def run(self):
         print(f"Running preprocess for {self.tool_name}...")
-        self.save_path = Path("data") / self.tool_name
 
         data = self.load_data()
 
         for test_info in data:
-            test_info = self.change_test_info(test_info)
             project_path = self.benchmark_path / test_info["repo_name"]
 
             file_path = project_path / test_info["file_path"]
@@ -109,15 +102,11 @@ class PreAnalysis:
                 file_path = project_path / test_info["file_path"]
 
             if not file_path.exists():
-                # print(f"File not found: {file_path}")
                 continue
 
             folder_name = str(test_info["repo_name"] + "_" + test_info["file_path"])[:-3].replace("/", "_")
 
-            output_path = Path("data") / self.tool_name / folder_name / test_info["target"]
-
-            if "AxelVoitier__lookups/lookups/instance_content" not in str(file_path):
-                continue
+            output_path = Path("data") / self.tool_name / folder_name / test_info["target"].replace('.', '_')
 
             target_name = test_info["target"]
             params = test_info["params"]
@@ -184,10 +173,6 @@ class PreAnalysis:
             top_n_predictions = self.run_pre_analysis(code, top_n_predictions)
             self.make_annotator(code, target_name, params)
 
-            print(top_n_predictions)
-            exit()
-
-
             datas = []
             for i, predictions in enumerate(top_n_predictions):
                 datas.append((i, predictions, project_path, file_path, test_info["file_path"], params, output_path))
@@ -209,15 +194,6 @@ class TigerPreAnalysis(PreAnalysis):
     tool_name = "Tiger"
     benchmark_path = Path("ManyTypes4Py/repos")
     is_single = True
-
-    def change_test_info(self, test_info):
-        src_path = test_info["src_path"]
-        file_path = test_info["file_path"]
-
-        file_path = file_path[file_path.find(src_path)+len(src_path)+1:]
-
-        test_info["file_path"] = file_path
-        return test_info
 
     def make_annotator(self, code, target_name, params):
         self.code = code
@@ -272,14 +248,126 @@ class TigerPreAnalysis(PreAnalysis):
 
         return top_n_predictions
 
+class TypeGenPreAnalysis(PreAnalysis):
+    tool_name = "TypeGen"
+    benchmark_path = Path("ManyTypes4Py/repos")
+    is_single = True
 
+    def make_annotator(self, code, target_name, params):
+        self.code = code
+        self.target_name = target_name
+        self.params = params 
+        
+    def annotate(self, predictions, is_removed=False):
+        root = ast.parse(self.code)
+        locator = FunctionLocator()
+
+        target_name_split = self.target_name.split(".")
+
+        if len(target_name_split) == 2:
+            self.class_name = target_name_split[0]
+            self.method_name = target_name_split[1]
+        elif len(target_name_split) == 1:
+            self.class_name = "global"
+            self.method_name = target_name_split[0]
+        else:
+            raise ValueError(f"Invalid target name: {self.target_name}")
+
+        if self.params[0] == "__RET__":
+            self.var_name = self.method_name
+            self.kind = "return"
+        else:
+            self.var_name = self.params[0]
+            self.kind = "arg"
+
+        if is_removed:
+            node = locator.run(root, f"{self.method_name}@{self.class_name}", self.var_name, self.kind)
+            annotate_function(node, None, self.var_name, is_param=(self.kind=="arg"), is_removed=True)
+        else:
+            pred = predictions[0]
+            if pred is None:
+                return None
+
+            try:
+                parsed_type = str(parse_type_str(pred))
+            except Exception:
+                return None
+
+            node = locator.run(root, f"{self.method_name}@{self.class_name}", self.var_name, self.kind)
+            annotate_function(node, parsed_type, self.var_name, is_param=(self.kind=="arg"))
+
+        annotated_code = ast.unparse(root)
+        return annotated_code
+
+    def run_pre_analysis(self, code, top_n_predictions):
+        is_imported_optional = self.check_optional(code)
+        if is_imported_optional:
+            top_n_predictions = self.change_optional_type(top_n_predictions)
+
+        return top_n_predictions
+
+class ExamplePreAnalysis(PreAnalysis):
+    tool_name = "Example"
+    benchmark_path = Path(".")
+    is_single = True
+
+    def make_annotator(self, code, target_name, params):
+        self.code = code
+        self.target_name = target_name
+        self.params = params 
+        
+    def annotate(self, predictions, is_removed=False):
+        root = ast.parse(self.code)
+        locator = FunctionLocator()
+
+        target_name_split = self.target_name.split(".")
+
+        if len(target_name_split) == 2:
+            self.class_name = target_name_split[0]
+            self.method_name = target_name_split[1]
+        elif len(target_name_split) == 1:
+            self.class_name = "global"
+            self.method_name = target_name_split[0]
+        else:
+            raise ValueError(f"Invalid target name: {self.target_name}")
+
+        if self.params[0] == "__RET__":
+            self.var_name = self.method_name
+            self.kind = "return"
+        else:
+            self.var_name = self.params[0]
+            self.kind = "arg"
+
+        if is_removed:
+            node = locator.run(root, f"{self.method_name}@{self.class_name}", self.var_name, self.kind)
+            annotate_function(node, None, self.var_name, is_param=(self.kind=="arg"), is_removed=True)
+        else:
+            pred = predictions[0]
+            if pred is None:
+                return None
+
+            try:
+                parsed_type = str(parse_type_str(pred))
+            except Exception:
+                return None
+
+            node = locator.run(root, f"{self.method_name}@{self.class_name}", self.var_name, self.kind)
+            annotate_function(node, parsed_type, self.var_name, is_param=(self.kind=="arg"))
+
+        annotated_code = ast.unparse(root)
+        return annotated_code
+
+    def run_pre_analysis(self, code, top_n_predictions):
+        is_imported_optional = self.check_optional(code)
+        if is_imported_optional:
+            top_n_predictions = self.change_optional_type(top_n_predictions)
+
+        return top_n_predictions
+    
 class TypeT5PreAnalysis(PreAnalysis):
     tool_name = "TypeT5"
     benchmark_path = Path("BetterTypes4Py/repos/test")
     is_single = False
-
-    def change_test_info(self, test_info):
-        return test_info
 
     def make_none_of_empty_expects(self, top_n_predictions, expects):
         none_idx = []
@@ -315,9 +403,9 @@ class TypeT5PreAnalysis(PreAnalysis):
         return top_n_predictions
 
 def run(tool_name):
-    if tool_name == "Tiger":
+    if tool_name == "tiger":
         pre_analysis = TigerPreAnalysis()
-    elif tool_name == "TypeT5":
+    elif tool_name == "typet5":
         pre_analysis = TypeT5PreAnalysis()
     else:
         raise ValueError(f"Unknown tool name: {tool_name}")
@@ -326,6 +414,15 @@ def run(tool_name):
 
 
 if __name__ == "__main__":
-    run("TypeT5")
+    argument_parser = ArgumentParser()
+    argument_parser.add_argument("--tool", "-t", type=str, required=True, choices=['typet5', 'tiger', 'typegen', 'example'], help="tool name <typet5|tiger|typegen|example>")
+    args = argument_parser.parse_args()
 
-    
+    if args.tool == "typet5":
+        TypeT5PreAnalysis().run()
+    elif args.tool == "typegen":
+        TypeGenPreAnalysis().run()
+    elif args.tool == "tiger":
+        TigerPreAnalysis().run()
+    elif args.tool == "example":
+        ExamplePreAnalysis().run()

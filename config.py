@@ -17,14 +17,14 @@ OUTPUT_PATH = ours / "output"
 MODEL_PATH = PRED_PATH / "typesim_model"
 
 
-TIGER_RESULT_PATH = PRED_PATH / "Tiger" / "transformed_result.json"
+TIGER_TRANSFORM_PATH = PRED_PATH / "Tiger" / "transformed_result.json"
 TIGER_OUTPUT_PATH = OUTPUT_PATH / "tiger_result.pkl"
 
 
 # Configuration for TypeGen
 TYPEGEN_PATH= PRED_PATH / "TypeGen"
 TYPEGEN_PREDICTION_PATH = TYPEGEN_PATH / "data" / "predictions" / "typegen.json"
-TYPEGEN_TESTSET_PATH = PRED_PATH / "TypeGen" / "transformed_result.json"
+TYPEGEN_TRANSFORM_PATH = PRED_PATH / "TypeGen" / "transformed_result.json"
 TYPEGEN_OUTPUT_PATH = OUTPUT_PATH / "typegen_result.pkl"
 
 # Configuration for TypeT5
@@ -32,3 +32,7 @@ TYPET5_PATH = PRED_PATH / "TypeT5"
 TYPET5_PREDICTION_PATH = PRED_PATH / "TypeT5" / 'double-traversal-EvalResultAllTest_0329.pkl'
 TYPET5_TRANSFORM_PATH = PRED_PATH / "TypeT5" / "transformed_result.json"
 TYPET5_OUTPUT_PATH = OUTPUT_PATH / "typet5_result.pkl"
+
+# Configuration for Example
+EXAMPLE_TRANSFORM_PATH = PRED_PATH / "Example" / "transformed_result.json"
+EXAMPLE_OUTPUT_PATH = OUTPUT_PATH / "tiger_result.pkl"

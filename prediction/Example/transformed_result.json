@@ -1,0 +1,48 @@
+[
+    {
+        "repo_name": "example",
+        "file_path": "example.py",
+        "target": "foo",
+        "params": [
+            "x"
+        ],
+        "predictions": [
+            [
+                "str"
+            ],
+            [
+                "list"
+            ],
+            [
+                "int"
+            ],
+            [
+                "bool"
+            ],
+            [
+                "tuple"
+            ],
+            [
+                "set"
+            ],
+            [
+                "float"
+            ],
+            [
+                "bytes"
+            ],
+            [
+                "None"
+            ],
+            [
+                "dict"
+            ]
+        ],
+        "total_predictions": null,
+        "expects": [
+            "int"
+        ],
+        "cat": "builtins",
+        "generic": false
+    }
+]
