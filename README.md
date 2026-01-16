@@ -4,7 +4,7 @@ This repository provides the replication package for the ICSE 2026 paper: **"Typ
 
 ## Purpose & Artifact Badges
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18263564.svg)](https://doi.org/10.5281/zenodo.18263564)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18263563.svg)](https://doi.org/10.5281/zenodo.18263563)
 
 * **Available:** The artifact is persistently archived on Zenodo.
 * **Functional:** We provide a comprehensive Docker environment, a minimal working example ([Kick-the-Tire](#kick-the-tire-small-example)), and step-by-step instructions to verify that the tool is operational and correctly evaluates experimental results.
