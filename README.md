@@ -4,7 +4,9 @@ This repository provides the replication package for the ICSE 2026 paper: **"Typ
 
 ## Purpose & Artifact Badges
 
-* **Available:** The artifact is persistently archived on Zenodo [Insert Zenodo DOI Link Here].
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18263564.svg)](https://doi.org/10.5281/zenodo.18263564)
+
+* **Available:** The artifact is persistently archived on Zenodo.
 * **Functional:** We provide a comprehensive Docker environment, a minimal working example ([Kick-the-Tire](#kick-the-tire-small-example)), and step-by-step instructions to verify that the tool is operational and correctly evaluates experimental results.
 * **Reusable:** Our package includes detailed documentation and modular scripts, allowing researchers to not only reproduce the results in the paper but also easily adapt TypeCare to new datasets (such as example code).
 
