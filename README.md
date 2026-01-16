@@ -1,9 +1,3 @@
----
-license: mit
-
-doi: 10.57xxx/xxxxx.xxxxx
----
-
 # Artifact for TypeCare (ICSE 2026)
 
 This repository provides the replication package for the ICSE 2026 paper: **"TypeCare: Boosting Python Type Inference Models via Context-Aware Re-Ranking and Augmentation"**([pre-print](https://prl.korea.ac.kr/papers/icse26typecare.pdf))
@@ -110,7 +104,7 @@ To save time during evaluation, we provided pre-computed outputs.
 cd /home/TypeCare
 
 # Download and extract pre-computed outputs
-wget https://github.com/kupl/TypeCare/releases/download/v1.0.1/pre_computed.tar.zst
+wget https://github.com/kupl/TypeCare/releases/download/v1.0.2/pre_computed.tar.zst
 tar -xvf pre_computed.tar.zst
 ```
 
