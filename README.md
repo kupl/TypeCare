@@ -88,10 +88,10 @@ pyright --version
 To save time during evaluation, we provided pre-computed outputs.
 ```bash
 # in the Docker container
-cd TypeCare
+cd /home/TypeCare
 
 # Download and extract pre-computed outputs
-wget ...
+wget https://github.com/kupl/TypeCare/releases/download/v1.0.1/pre_computed.tar.zst
 tar -xvf pre_computed.tar.zst
 ```
 
@@ -174,6 +174,8 @@ We assume a learning-based model has generated the top-10 candidates, as shown i
 
 1. **Run pre-analysis:** Generate static analysis (pyright) results for the candidates.
 ```bash
+# in the Docker Container
+cd /home/TypeCare
 python -m pre_analysis.run --tool="example"
 ```
 
